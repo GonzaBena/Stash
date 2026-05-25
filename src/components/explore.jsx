@@ -465,8 +465,9 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "var(--bg)" }}>
 
       {/* ── Barra de filtros ─────────────────────────────────────────────── */}
-      <div style={{ padding: "12px 18px 10px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* search */}
+
+      {/* Fila 1: buscador */}
+      <div style={{ flexShrink: 0, padding: "12px 14px 8px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px" }}>
           <span style={{ color: "var(--text-faint)", display: "flex" }}><SearchIcon /></span>
           <input
@@ -481,56 +482,82 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
             </button>
           )}
         </div>
+      </div>
 
-        {/* AI filter pills + sort pills */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* AI pills */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
-            <button onClick={() => setAiFilter(null)} style={pillStyle(aiFilter === null, accent, accentInk)}>All</button>
-            {Object.entries(AI_META).map(([k, m]) => (
-              <button key={k} onClick={() => setAiFilter(aiFilter === k ? null : k)}
-                style={pillStyle(aiFilter === k, m.color, "#fff")}>
-                <span>{m.glyph}</span>{m.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Sort pills */}
-          <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
-            {Object.keys(sortLabels).map(s => (
-              <button key={s} onClick={() => setSort(s)} style={{
-                padding: "4px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 500,
-                background: sort === s ? "var(--surface)" : "transparent",
-                color: sort === s ? "var(--text)" : "var(--text-faint)",
-                border: `1px solid ${sort === s ? "var(--border-strong)" : "transparent"}`,
-                cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-              }}>
-                {sortLabels[s]}
-              </button>
-            ))}
-            {/* Refresh button */}
-            <button
-              onClick={() => setRefreshKey(k => k + 1)}
-              disabled={loading}
-              title="Refresh"
-              className="stash-iconbtn"
-              style={{
-                marginLeft: 2, flexShrink: 0,
-                opacity: loading ? 0.4 : 1,
-                transition: "opacity .15s",
-              }}
-            >
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                style={{ display: "block", animation: loading ? "stashSpin .7s linear infinite" : "none" }}
-              >
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
+      {/* Fila 2: chips AI — scroll horizontal sin wrap */}
+      <div style={{
+        flexShrink: 0,
+        display: "flex", gap: 6, padding: "8px 14px",
+        overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none",
+        WebkitOverflowScrolling: "touch",
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <button onClick={() => setAiFilter(null)} style={chipStyle(aiFilter === null, accent, "#fff")}>
+          All
+          {!loading && <span style={{ opacity: .55, fontSize: 11, fontWeight: 400, marginLeft: 2 }}>{results.length}</span>}
+        </button>
+        {Object.entries(AI_META).map(([k, m]) => {
+          const count = results.filter(p => p.ai === k).length;
+          if (!loading && count === 0) return null;
+          return (
+            <button key={k} onClick={() => setAiFilter(aiFilter === k ? null : k)} style={chipStyle(aiFilter === k, m.color, "#fff")}>
+              <span style={{ fontWeight: 700 }}>{m.glyph}</span> {m.name}
+              {!loading && <span style={{ opacity: .55, fontSize: 11, fontWeight: 400, marginLeft: 2 }}>{count}</span>}
             </button>
-          </div>
-        </div>
+          );
+        })}
+      </div>
+
+      {/* Fila 3: sort + contador + recarga */}
+      <div style={{
+        flexShrink: 0,
+        display: "flex", alignItems: "center", gap: 4,
+        padding: "6px 14px 7px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--bg-soft)",
+      }}>
+        {/* contador */}
+        <span style={{ fontSize: 11.5, color: "var(--text-faint)", flexShrink: 0 }}>
+          {loading ? "…" : `${filtered.length} prompt${filtered.length !== 1 ? "s" : ""}`}
+        </span>
+
+        <span style={{ flex: 1 }} />
+
+        {/* sort buttons */}
+        {Object.keys(sortLabels).map(s => (
+          <button key={s} onClick={() => setSort(s)} style={{
+            padding: "4px 11px", borderRadius: 20, fontSize: 12, fontWeight: sort === s ? 600 : 500,
+            background: sort === s ? "var(--surface)" : "transparent",
+            color: sort === s ? "var(--text)" : "var(--text-faint)",
+            border: `1px solid ${sort === s ? "var(--border)" : "transparent"}`,
+            cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+            transition: "background .1s",
+          }}>
+            {sortLabels[s]}
+          </button>
+        ))}
+
+        {/* Refresh */}
+        <button
+          onClick={() => setRefreshKey(k => k + 1)}
+          disabled={loading}
+          title="Reload"
+          style={{
+            marginLeft: 2, flexShrink: 0, width: 28, height: 28,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: 7, border: "1px solid var(--border)",
+            background: "var(--surface)", cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.4 : 1, transition: "opacity .15s",
+            color: "var(--text-2)",
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"
+            style={{ display: "block", animation: loading ? "stashSpin .7s linear infinite" : "none" }}>
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
       </div>
 
       {/* ── Contenido ────────────────────────────────────────────────────── */}
@@ -608,14 +635,15 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
   );
 }
 
-// helper para estilos de pills de filtro
-function pillStyle(active, color, inkColor) {
+// helper para estilos de chips de filtro
+function chipStyle(active, color, inkColor) {
   return {
     display: "inline-flex", alignItems: "center", gap: 5,
-    padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500,
+    padding: "5px 12px", borderRadius: 20, fontSize: 12.5, fontWeight: active ? 600 : 500,
     background: active ? color : "var(--surface)",
     color: active ? (inkColor || "#fff") : "var(--text-2)",
-    border: `1px solid ${active ? color : "var(--border-strong)"}`,
-    cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+    border: `1px solid ${active ? color : "var(--border)"}`,
+    cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0,
+    transition: "background .1s, color .1s",
   };
 }

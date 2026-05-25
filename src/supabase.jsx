@@ -1,6 +1,7 @@
 // src/supabase.jsx
 // Inicializa el cliente de Supabase y lo expone en window._supabase
 import { createClient } from '@supabase/supabase-js';
+import { isElectron } from '@/lib/platform';
 
 // Credenciales en orden de prioridad:
 //   1. window.STASH_CONFIG  → src/config.jsx (local/Electron, gitignoreado)
@@ -17,7 +18,9 @@ if (SUPABASE_URL && SUPABASE_ANON) {
       storage: window.localStorage,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,  // el renderer nunca ve la URL de callback
+      // En Electron el código OAuth llega por IPC (no por URL), así que desactivamos.
+      // En web, Supabase necesita leer el ?code= de la URL de callback para crear la sesión.
+      detectSessionInUrl: !isElectron,
       flowType: 'pkce',
     },
   });

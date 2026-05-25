@@ -6,7 +6,7 @@ import { THEMES, useToast, extractVars } from './ui';
 import { SAMPLE_PROMPTS } from './data';
 
 // Components
-import { TopBar } from './components/topbar';
+import { TopBar, MobileFilterBar } from './components/topbar';
 import { Sidebar } from './components/sidebar';
 import { ListView, Splitter } from './components/list-view';
 import { GridView } from './components/grid-view';
@@ -27,6 +27,24 @@ export default function App() {
   // ── Auth + sync state ──────────────────────────────────────────────────────
   const authState = useAuth();
   const { user, signIn, signOut } = authState;
+
+  // ── Splash screen: desvanece una vez que React pintó el primer frame ────────
+  useEffect(() => {
+    const el = document.getElementById('splash');
+    if (!el) return;
+    // requestAnimationFrame doble garantiza que el DOM ya fue pintado
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.classList.add('splash-hide');
+        const onEnd = () => el.remove();
+        el.addEventListener('transitionend', onEnd, { once: true });
+        // fallback: si la transición nunca dispara (ej. prefers-reduced-motion)
+        const t = setTimeout(onEnd, 500);
+        el.addEventListener('transitionend', () => clearTimeout(t), { once: true });
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // expose CSS vars
   useEffect(() => {
@@ -85,15 +103,24 @@ export default function App() {
         .from('prompts').select('*').eq('user_id', userId);
       if (fetchErr) throw fetchErr;
 
-      const remoteMap = new Map((remote || []).map(r => [String(r.id), r]));
-      const localMap  = new Map(currentPrompts.map(l => [String(l.id), l]));
-      const allIds    = new Set([...remoteMap.keys(), ...localMap.keys()]);
-      const merged    = [];
+      const remoteMap  = new Map((remote || []).map(r => [String(r.id), r]));
+      const localMap   = new Map(currentPrompts.map(l => [String(l.id), l]));
+      const allIds     = new Set([...remoteMap.keys(), ...localMap.keys()]);
+      const merged     = [];
+
+      // Si el usuario ya tiene prompts en la nube, los locales que sean de ejemplo
+      // (IDs coinciden con SAMPLE_PROMPTS) no se incluyen ni se suben.
+      const hasRemoteData = (remote || []).length > 0;
+      const sampleIds = new Set(SAMPLE_PROMPTS.map(p => String(p.id)));
 
       for (const id of allIds) {
         const loc = localMap.get(id);
         const rem = remoteMap.get(id);
-        if (loc && !rem) { merged.push(loc); continue; }
+        if (loc && !rem) {
+          if (hasRemoteData && sampleIds.has(id)) continue; // ignorar samples si ya hay datos en la nube
+          merged.push(loc);
+          continue;
+        }
         if (!loc && rem) { const { user_id, ...r } = rem; merged.push(r); continue; }
         const lt = new Date(loc.updated_at || 0).getTime();
         const rt = new Date(rem.updated_at || 0).getTime();
@@ -385,12 +412,23 @@ export default function App() {
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)", fontFamily: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif", fontSize: 14 }}>
       <TopBar q={q} setQ={setQ} view={view} setView={setView} onNew={openNew} accent={accent} accentInk={accentInk} onMenu={() => setMobileSidebar(true)} isMobile={isMobile} dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)} section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir} />
+      {isMobile && <MobileFilterBar filter={filter} setFilter={setFilter} prompts={prompts} accent={accent} section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir} onSync={handleManualSync} syncing={authState.syncing} />}
       <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
         {!isMobile && <Sidebar prompts={prompts} filter={filter} setFilter={setFilter} accent={accent} accentSoft={accentSoft} accountProps={accountProps} section={section} setSection={setSection} />}
         {isMobile && mobileSidebar && (
-          <div onClick={() => setMobileSidebar(false)} style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,.3)", zIndex: 100, animation: "stashFadeIn .15s ease-out" }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, left: 0, bottom: 0, animation: "slideInLeft .2s cubic-bezier(.2,.7,.3,1)" }}>
-              <Sidebar prompts={prompts} filter={filter} setFilter={(f) => { setFilter(f); setMobileSidebar(false); }} accent={accent} accentSoft={accentSoft} accountProps={accountProps} section={section} setSection={(s) => { setSection(s); setMobileSidebar(false); }} />
+          <div
+            onClick={() => setMobileSidebar(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,.35)", zIndex: 100, animation: "stashFadeIn .15s ease-out" }}
+          >
+            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", inset: 0, animation: "slideInLeft .2s cubic-bezier(.2,.7,.3,1)" }}>
+              <Sidebar
+                prompts={prompts} filter={filter}
+                setFilter={(f) => { setFilter(f); setMobileSidebar(false); }}
+                accent={accent} accentSoft={accentSoft}
+                isMobile={true} onClose={() => setMobileSidebar(false)}
+                accountProps={accountProps} section={section}
+                setSection={(s) => { setSection(s); setMobileSidebar(false); }}
+              />
             </div>
           </div>
         )}

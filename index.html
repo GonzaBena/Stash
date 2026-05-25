@@ -50,9 +50,62 @@
     *::-webkit-scrollbar-track { background: transparent; }
     *::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
     *::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); border: 2px solid transparent; background-clip: content-box; }
+
+    /* ── Splash screen ─────────────────────────────────────────────────────── */
+    @keyframes splashLogoIn {
+      from { opacity: 0; transform: scale(0.88) translateY(6px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0);    }
+    }
+    @keyframes splashTextIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
+    @keyframes splashDot {
+      0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
+      40%            { opacity: 1;    transform: scale(1);   }
+    }
+    #splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      background: #15130f;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+    #splash-logo {
+      width: 72px; height: 72px; border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+      animation: splashLogoIn 0.45s cubic-bezier(.2,.8,.3,1) both;
+    }
+    #splash-name {
+      font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 22px; font-weight: 600; letter-spacing: -0.4px;
+      color: #f4efe3;
+      animation: splashTextIn 0.4s cubic-bezier(.2,.8,.3,1) 0.1s both;
+    }
+    #splash-dots {
+      display: flex; gap: 5px;
+      animation: splashTextIn 0.4s cubic-bezier(.2,.8,.3,1) 0.18s both;
+    }
+    #splash-dots span {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #f2a23b; display: block;
+      animation: splashDot 1.2s ease-in-out infinite;
+    }
+    #splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+    #splash-dots span:nth-child(3) { animation-delay: 0.4s; }
   </style>
 </head>
 <body>
+  <!-- Splash: se muestra antes de que React cargue, elimina la pantalla blanca -->
+  <div id="splash" aria-hidden="true">
+    <img id="splash-logo" src="/logo.png" alt="" />
+    <span id="splash-name">Stash</span>
+    <div id="splash-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
