@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Stash — Configuración</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div id="settings-root">
+
+    <!-- Titlebar -->
+    <div id="settings-titlebar">
+      <span id="settings-title">Configuración</span>
+      <button id="settings-close" title="Cerrar">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <line x1="1" y1="1" x2="11" y2="11"/>
+          <line x1="11" y1="1" x2="1" y2="11"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div id="settings-body">
+
+      <!-- Sección: Companion -->
+      <div class="settings-section">
+        <div class="settings-section-label">Companion</div>
+
+        <div class="settings-field">
+          <label class="settings-label" for="shortcut-display">Atajo de teclado</label>
+          <div class="settings-shortcut-row">
+            <div id="shortcut-display" class="settings-shortcut-chip" title="Haz clic en Grabar y luego presiona la combinación"></div>
+            <button id="shortcut-record-btn" class="settings-record-btn">Grabar</button>
+          </div>
+          <div id="shortcut-hint" class="settings-hint">Haz clic en <strong>Grabar</strong> y presiona la combinación deseada</div>
+          <div id="shortcut-error" class="settings-error" hidden></div>
+        </div>
+      </div>
+
+      <!-- Sección: General -->
+      <div class="settings-section">
+        <div class="settings-section-label">General</div>
+
+        <label class="settings-checkbox-row" id="login-row">
+          <span id="login-checkbox" class="settings-checkbox" role="checkbox" aria-checked="false" tabindex="0"></span>
+          <span class="settings-checkbox-label">Iniciar con Windows</span>
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div id="settings-footer">
+      <button id="settings-reset-btn" class="settings-btn settings-btn--danger" title="Volver a los valores por defecto">Resetear</button>
+      <div id="settings-save-error" class="settings-error" hidden></div>
+      <button id="settings-cancel-btn" class="settings-btn settings-btn--ghost">Cancelar</button>
+      <button id="settings-save-btn"   class="settings-btn settings-btn--primary">Guardar</button>
+    </div>
+
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

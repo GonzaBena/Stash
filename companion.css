@@ -1,0 +1,202 @@
+/* companion.css — Stash Companion window
+   Paleta extraída del dark theme de Stash.html */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  /* transparent: la sombra del root se ve contra el escritorio */
+  background: transparent;
+  width: 500px;
+  height: 400px;
+  overflow: hidden;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Contenedor principal ────────────────────────────────────────────────── */
+#companion-root {
+  width: 500px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  /* backgroundMaterial:'acrylic' en main.js aporta el desenfoque nativo de Windows 11;
+     mantenemos un tinte oscuro semitransparente para preservar la legibilidad */
+  background: rgba(28, 24, 20, 0.45);
+  /* border-radius: 16px; */
+  /* Borde interior sutil + sombra grande para efecto flotante */
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.7),
+    0 28px 72px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* ── Barra de búsqueda ───────────────────────────────────────────────────── */
+#companion-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+#companion-icon {
+  color: rgba(244, 239, 227, 0.32);
+  flex-shrink: 0;
+}
+
+#companion-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(244, 239, 227, 0.92);
+  caret-color: #f2a23b;
+  letter-spacing: -0.01em;
+}
+
+#companion-input::placeholder {
+  color: rgba(244, 239, 227, 0.26);
+}
+
+#companion-esc-hint {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(244, 239, 227, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 2px 6px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Lista de prompts ────────────────────────────────────────────────────── */
+#companion-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 239, 227, 0.12) transparent;
+}
+
+#companion-list::-webkit-scrollbar {
+  width: 5px;
+}
+#companion-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+#companion-list::-webkit-scrollbar-thumb {
+  background: rgba(244, 239, 227, 0.12);
+  border-radius: 999px;
+}
+#companion-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 239, 227, 0.25);
+}
+
+/* ── Estado vacío ────────────────────────────────────────────────────────── */
+#companion-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: rgba(244, 239, 227, 0.24);
+  padding: 20px;
+  font-style: italic;
+}
+
+/* ── Tarjeta de prompt ───────────────────────────────────────────────────── */
+.companion-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  cursor: default;
+  transition: background 0.07s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.companion-card:hover,
+.companion-card--selected {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.companion-card:active {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+/* AI color dot */
+.companion-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.companion-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.companion-card-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(244, 239, 227, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.companion-card-preview {
+  font-size: 11.5px;
+  color: rgba(244, 239, 227, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.companion-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.7;
+}
+
+.companion-badge--mine {
+  /* Amber — mismo acento que la app */
+  background: rgba(242, 162, 59, 0.14);
+  color: rgba(242, 162, 59, 0.82);
+}
+
+.companion-badge--saved {
+  /* Neutro para prompts guardados de la comunidad */
+  background: rgba(244, 239, 227, 0.07);
+  color: rgba(244, 239, 227, 0.38);
+}

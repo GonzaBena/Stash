@@ -1,0 +1,57 @@
+{
+  "name": "stash",
+  "version": "1.0.0",
+  "description": "Your prompt library",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "build": {
+    "appId": "com.stash.promptlibrary",
+    "productName": "Stash",
+    "files": [
+      "Stash.html",
+      "companion.html",
+      "companion.js",
+      "companion.css",
+      "src/**/*.jsx",
+      "main.js",
+      "public/**"
+    ],
+    "win": {
+      "icon": "public/logo.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "icon": "public/logo.png",
+      "target": "dmg",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "icon": "public/logo.png",
+      "target": "AppImage"
+    }
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1"
+  }
+}

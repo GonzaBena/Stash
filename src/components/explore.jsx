@@ -1,0 +1,521 @@
+// src/components/explore.jsx — Community: ExploreView, ExplorePreview, UserProfile
+
+// ── Local icons ───────────────────────────────────────────────────────────────
+const SaveIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+
+const VerifiedBadge = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="#0ea5e9" title="Verified creator" style={{ flexShrink: 0 }}>
+    <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82-1.89-3.2L12 2.96 8.6 1.5 6.71 4.69 3.1 5.5l.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.82 1.89 3.2L12 21.04l3.4 1.47 1.89-3.2 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z"/>
+  </svg>
+);
+
+// ── CommunityCard — tarjeta compartida por ExploreView y UserProfile ──────────
+function CommunityCard({ p, accent, user, onSave, onCardClick, onCreatorClick }) {
+  const m = AI_META[p.ai] || AI_META.generic;
+  const vars = extractVars(p.body || "");
+  return (
+    <div
+      className="stash-card"
+      onClick={onCardClick}
+      style={{
+        background: "var(--surface)", borderRadius: 14, padding: 16,
+        border: "1px solid var(--border)",
+        cursor: "pointer", display: "flex", flexDirection: "column", gap: 8,
+        minHeight: 160, position: "relative", overflow: "hidden",
+      }}
+    >
+      {/* model color stripe */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: m.color }} />
+
+      {/* top row: AI badge + var count */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+        <AIBadge ai={p.ai} size="sm" />
+        {vars.length > 0 && (
+          <span style={{ fontSize: 11, color: accent, fontFamily: "ui-monospace, monospace", padding: "1px 7px", borderRadius: 999, background: `${accent}1f`, fontWeight: 600 }}>
+            {`{{${vars.length}}}`}
+          </span>
+        )}
+      </div>
+
+      {/* title */}
+      <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.25, color: "var(--text)" }}>
+        {p.title}
+      </div>
+
+      {/* body preview */}
+      <div style={{
+        fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.5, flex: 1,
+        display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+      }}>
+        {(p.body || "").split("\n")[0]}
+      </div>
+
+      {/* tags */}
+      {(p.tags || []).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {p.tags.map(t => <Tag key={t} size="sm">{t}</Tag>)}
+        </div>
+      )}
+
+      {/* footer: creator + saves + save btn */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 6, borderTop: "1px dashed var(--border)", marginTop: 2 }}>
+        <button
+          onClick={e => { e.stopPropagation(); if (onCreatorClick) onCreatorClick(p); }}
+          title={onCreatorClick ? `View ${p.creator_name || "Anonymous"}'s prompts` : undefined}
+          style={{
+            background: "none", border: "none", padding: 0,
+            cursor: onCreatorClick ? "pointer" : "default",
+            display: "flex", alignItems: "center", gap: 4,
+            flex: 1, minWidth: 0, fontFamily: "inherit",
+          }}
+        >
+          <span style={{
+            fontSize: 11.5,
+            color: onCreatorClick ? "var(--text-2)" : "var(--text-faint)",
+            fontWeight: onCreatorClick ? 500 : 400,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {p.creator_name || "Anonymous"}
+          </span>
+          {p.creator_verified && <VerifiedBadge />}
+          {p.saves > 0 && (
+            <span style={{ fontSize: 11, color: "var(--text-faint)", flexShrink: 0 }}>
+              · {p.saves} {p.saves === 1 ? "save" : "saves"}
+            </span>
+          )}
+        </button>
+        <button
+          className="stash-iconbtn"
+          title={user ? "Save to Library" : "Sign in to save"}
+          style={{ flexShrink: 0, color: accent }}
+          onClick={e => { e.stopPropagation(); onSave(p); }}
+        >
+          <SaveIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── ExplorePreview — modal de detalle de un prompt comunitario ────────────────
+function ExplorePreview({ open, prompt, onClose, accent, accentSoft, accentInk, user, onSave, onViewProfile }) {
+  if (!open || !prompt) return null;
+  const vars = extractVars(prompt.body || "");
+  const m = AI_META[prompt.ai] || AI_META.generic;
+
+  return (
+    <Modal open={open} onClose={onClose} width={680}>
+      {/* model color stripe */}
+      <div style={{ height: 4, background: m.color, flexShrink: 0 }} />
+
+      {/* header */}
+      <div style={{ padding: "20px 26px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: 12, flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 28, fontWeight: 500, color: "var(--text)", lineHeight: 1.15 }}>
+            {prompt.title}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: 8 }}>
+            <AIBadge ai={prompt.ai} size="sm" />
+            {(prompt.tags || []).length > 0 && (
+              <span style={{ width: 1, height: 14, background: "var(--border)", margin: "0 2px" }} />
+            )}
+            {(prompt.tags || []).map(t => <Tag key={t} size="sm">{t}</Tag>)}
+          </div>
+          {/* creator meta */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-faint)", marginTop: 8 }}>
+            <span>by</span>
+            {onViewProfile ? (
+              <button
+                onClick={() => { onViewProfile(prompt); onClose(); }}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "var(--text-2)", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}
+              >
+                {prompt.creator_name || "Anonymous"}
+                {prompt.creator_verified && <VerifiedBadge />}
+              </button>
+            ) : (
+              <span style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--text-2)", fontWeight: 600 }}>
+                {prompt.creator_name || "Anonymous"}
+                {prompt.creator_verified && <VerifiedBadge />}
+              </span>
+            )}
+            {(prompt.uses > 0 || prompt.saves > 0) && (
+              <span>·
+                {prompt.uses > 0 ? ` ${prompt.uses}× used` : ""}
+                {prompt.saves > 0 ? ` · ${prompt.saves} ${prompt.saves === 1 ? "save" : "saves"}` : ""}
+              </span>
+            )}
+          </div>
+        </div>
+        <button className="stash-iconbtn" onClick={onClose} title="Close (Esc)" style={{ flexShrink: 0 }}>
+          <span style={{ fontSize: 20, lineHeight: 1 }}>×</span>
+        </button>
+      </div>
+
+      {/* body */}
+      <div style={{ padding: 22, flex: 1, minHeight: 0, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+        <pre style={{
+          margin: 0, fontFamily: "ui-monospace, 'SF Mono', monospace", fontSize: 13.5, lineHeight: 1.65,
+          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text)",
+          background: "var(--surface)", padding: 18, borderRadius: 12, border: "1px solid var(--border)",
+        }}>{renderBody(prompt.body || "", accent)}</pre>
+
+        {vars.length > 0 && (
+          <div style={{ padding: 14, background: accentSoft, borderRadius: 12 }}>
+            <div style={{ fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 600, color: "var(--text-3)", marginBottom: 8 }}>
+              {vars.length} variable{vars.length !== 1 ? "s" : ""}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {vars.map(v => (
+                <span key={v} style={{ background: "var(--surface)", padding: "3px 10px", borderRadius: 999, fontSize: 12, fontFamily: "ui-monospace, monospace", color: accent, fontWeight: 600, border: `1px solid ${accent}33` }}>
+                  {`{{${v}}}`}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* footer */}
+      <div style={{ padding: "12px 22px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center", flexShrink: 0 }}>
+        {!user && (
+          <span style={{ fontSize: 12, color: "var(--text-faint)", marginRight: 4 }}>Sign in to save</span>
+        )}
+        <Btn onClick={onClose}>Close</Btn>
+        <Btn primary accent={accent} accentInk={accentInk}
+          onClick={() => onSave(prompt)}
+          title={user ? "Save a copy to your library" : "Sign in to save prompts"}
+          style={{ opacity: user ? 1 : 0.5 }}
+        >
+          <SaveIcon /> Save to Library
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ── UserProfile — todos los prompts públicos de un creador ────────────────────
+function UserProfile({ userId, creatorName, creatorVerified, accent, accentSoft, accentInk, user, onSave, onBack }) {
+  const [prompts, setPrompts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error,   setError]   = React.useState(null);
+  const [preview, setPreview] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!_supabase) { setLoading(false); return; }
+    setLoading(true);
+    _supabase
+      .from('prompts')
+      .select('id, title, body, ai, tags, uses, saves, creator_name, creator_verified, user_id, updated_at')
+      .eq('user_id', userId)
+      .eq('public', true)
+      .order('uses', { ascending: false })
+      .then(({ data, error: fetchErr }) => {
+        if (fetchErr) setError(fetchErr.message);
+        else setPrompts(data || []);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "var(--bg)" }}>
+      {/* profile header */}
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          onClick={onBack}
+          className="stash-iconbtn"
+          title="Back to Explore"
+          style={{ flexShrink: 0 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", background: accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
+          {(creatorName || "?")[0].toUpperCase()}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: 20, fontWeight: 500, color: "var(--text)" }}>
+              {creatorName || "Anonymous"}
+            </span>
+            {creatorVerified && <VerifiedBadge />}
+          </div>
+          {!loading && (
+            <div style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 1 }}>
+              {prompts.length} public prompt{prompts.length !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* grid */}
+      <div style={{ flex: 1, overflow: "auto", padding: 18 }}>
+        {loading ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--text-faint)", fontSize: 13.5 }}>
+            Loading prompts…
+          </div>
+        ) : error ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--danger)", fontSize: 13.5 }}>{error}</div>
+        ) : prompts.length === 0 ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--text-faint)" }}>
+            <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 22, color: "var(--text-2)", marginBottom: 6 }}>
+              No public prompts yet
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+            {prompts.map(p => (
+              <CommunityCard
+                key={p.id}
+                p={p}
+                accent={accent}
+                user={user}
+                onSave={onSave}
+                onCardClick={() => setPreview(p)}
+                onCreatorClick={null}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ExplorePreview
+        open={!!preview}
+        prompt={preview}
+        onClose={() => setPreview(null)}
+        accent={accent}
+        accentSoft={accentSoft}
+        accentInk={accentInk}
+        user={user}
+        onSave={p => { onSave(p); setPreview(null); }}
+        onViewProfile={null}
+      />
+    </div>
+  );
+}
+
+// ── ExploreView — cuadrícula principal de la comunidad ────────────────────────
+function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast }) {
+  const [results,       setResults]       = React.useState([]);
+  const [loading,       setLoading]       = React.useState(true);
+  const [error,         setError]         = React.useState(null);
+  const [q,             setQ]             = React.useState("");
+  const [aiFilter,      setAiFilter]      = React.useState(null);
+  const [sort,          setSort]          = React.useState("popular");
+  const [preview,       setPreview]       = React.useState(null);
+  const [profileTarget, setProfileTarget] = React.useState(null);
+  const [refreshKey,    setRefreshKey]    = React.useState(0);
+
+  const orderMap = {
+    popular: { column: "uses",       ascending: false },
+    saved:   { column: "saves",      ascending: false },
+    recent:  { column: "updated_at", ascending: false },
+  };
+
+  React.useEffect(() => {
+    if (!_supabase) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    const { column, ascending } = orderMap[sort] || orderMap.popular;
+    _supabase
+      .from('prompts')
+      .select('id, title, body, ai, tags, uses, saves, creator_name, creator_verified, user_id, updated_at')
+      .eq('public', true)
+      .order(column, { ascending })
+      .then(({ data, error: fetchErr }) => {
+        if (fetchErr) setError(fetchErr.message);
+        else setResults(data || []);
+        setLoading(false);
+      });
+  }, [sort, refreshKey]);
+
+  const filtered = React.useMemo(() => {
+    return results.filter(p => {
+      if (aiFilter && p.ai !== aiFilter) return false;
+      if (q) {
+        const ql = q.toLowerCase();
+        const hay = (p.title + " " + (p.body || "") + " " + (p.tags || []).join(" ")).toLowerCase();
+        if (!hay.includes(ql)) return false;
+      }
+      return true;
+    });
+  }, [results, q, aiFilter]);
+
+  const handleViewProfile = (p) => {
+    setProfileTarget({ userId: p.user_id, creatorName: p.creator_name, creatorVerified: p.creator_verified });
+  };
+
+  // ── Sin Supabase ──────────────────────────────────────────────────────────
+  if (!_supabase) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, padding: 40, color: "var(--text-faint)" }}>
+        <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 24, color: "var(--text-2)" }}>Cloud not configured</div>
+        <div style={{ fontSize: 13.5, textAlign: "center", maxWidth: 360, lineHeight: 1.6 }}>
+          Add your Supabase credentials to{" "}
+          <code style={{ background: "var(--surface)", padding: "1px 6px", borderRadius: 4, border: "1px solid var(--border)", fontSize: 12 }}>src/config.jsx</code>{" "}
+          to explore community prompts.
+        </div>
+      </div>
+    );
+  }
+
+  // ── Perfil de usuario (sub-navegación) ────────────────────────────────────
+  if (profileTarget) {
+    return (
+      <UserProfile
+        userId={profileTarget.userId}
+        creatorName={profileTarget.creatorName}
+        creatorVerified={profileTarget.creatorVerified}
+        accent={accent}
+        accentSoft={accentSoft}
+        accentInk={accentInk}
+        user={user}
+        onSave={onSave}
+        onBack={() => setProfileTarget(null)}
+      />
+    );
+  }
+
+  const sortLabels = { popular: "Popular", saved: "Most Saved", recent: "Recent" };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden", background: "var(--bg)" }}>
+
+      {/* ── Barra de filtros ─────────────────────────────────────────────── */}
+      <div style={{ padding: "12px 18px 10px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* search */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px" }}>
+          <span style={{ color: "var(--text-faint)", display: "flex" }}><SearchIcon /></span>
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search community prompts…"
+            style={{ flex: 1, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 13.5, color: "var(--text)" }}
+          />
+          {q && (
+            <button className="stash-iconbtn" onClick={() => setQ("")} style={{ width: 22, height: 22 }}>
+              <span style={{ fontSize: 14 }}>×</span>
+            </button>
+          )}
+        </div>
+
+        {/* AI filter pills + sort pills */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* AI pills */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+            <button onClick={() => setAiFilter(null)} style={pillStyle(aiFilter === null, accent, accentInk)}>All</button>
+            {Object.entries(AI_META).map(([k, m]) => (
+              <button key={k} onClick={() => setAiFilter(aiFilter === k ? null : k)}
+                style={pillStyle(aiFilter === k, m.color, "#fff")}>
+                <span>{m.glyph}</span>{m.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort pills */}
+          <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
+            {Object.keys(sortLabels).map(s => (
+              <button key={s} onClick={() => setSort(s)} style={{
+                padding: "4px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 500,
+                background: sort === s ? "var(--surface)" : "transparent",
+                color: sort === s ? "var(--text)" : "var(--text-faint)",
+                border: `1px solid ${sort === s ? "var(--border-strong)" : "transparent"}`,
+                cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+              }}>
+                {sortLabels[s]}
+              </button>
+            ))}
+            {/* Refresh button */}
+            <button
+              onClick={() => setRefreshKey(k => k + 1)}
+              disabled={loading}
+              title="Refresh"
+              className="stash-iconbtn"
+              style={{
+                marginLeft: 2, flexShrink: 0,
+                opacity: loading ? 0.4 : 1,
+                transition: "opacity .15s",
+              }}
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ display: "block", animation: loading ? "stashSpin .7s linear infinite" : "none" }}
+              >
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Contenido ────────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflow: "auto", padding: 18 }}>
+        {loading ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--text-faint)", fontSize: 13.5 }}>
+            Loading community prompts…
+          </div>
+        ) : error ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--danger)", fontSize: 13.5 }}>{error}</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--text-faint)" }}>
+            <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 24, color: "var(--text-2)", marginBottom: 8 }}>
+              {results.length === 0 ? "No public prompts yet" : "No results"}
+            </div>
+            <div style={{ fontSize: 13.5 }}>
+              {results.length === 0
+                ? 'Be the first! Toggle "Share publicly" when editing a prompt.'
+                : "Try a different search or remove a filter."}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+            {filtered.map(p => (
+              <CommunityCard
+                key={p.id}
+                p={p}
+                accent={accent}
+                user={user}
+                onSave={onSave}
+                onCardClick={() => setPreview(p)}
+                onCreatorClick={handleViewProfile}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* preview modal */}
+      <ExplorePreview
+        open={!!preview}
+        prompt={preview}
+        onClose={() => setPreview(null)}
+        accent={accent}
+        accentSoft={accentSoft}
+        accentInk={accentInk}
+        user={user}
+        onSave={p => { onSave(p); setPreview(null); }}
+        onViewProfile={handleViewProfile}
+      />
+    </div>
+  );
+}
+
+// helper para estilos de pills de filtro
+function pillStyle(active, color, inkColor) {
+  return {
+    display: "inline-flex", alignItems: "center", gap: 5,
+    padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500,
+    background: active ? color : "var(--surface)",
+    color: active ? (inkColor || "#fff") : "var(--text-2)",
+    border: `1px solid ${active ? color : "var(--border-strong)"}`,
+    cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+  };
+}
+
+Object.assign(window, { ExploreView, ExplorePreview, UserProfile, CommunityCard });

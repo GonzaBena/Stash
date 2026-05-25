@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Credentials — NEVER commit the real config
+src/config.jsx
+
+# Electron builder cache
+.cache/
+
+# IDE / Claude Code local config
+.claude/

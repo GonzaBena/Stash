@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stash — your prompt library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --accent: #f2a23b; --accent-soft: #fef3e0;
+    --bg: #faf7f2; --bg-soft: #fbf8f1; --surface: #ffffff;
+    --text: #1a1612; --text-2: #3a342a; --text-3: #5a544a;
+    --text-muted: #6b6358; --text-muted-2: #8a8273; --text-faint: #a8a092;
+    --border: #ebe5d8; --border-strong: #e5dfd0; --border-soft: #f3eee0;
+    --shadow-rgb: 26,22,18;
+    --row-hover: rgba(0,0,0,.025);
+    --row-hover-2: rgba(0,0,0,.05);
+    --row-selected: rgba(0,0,0,.025);
+    --scrollbar: rgba(26,22,18,.12);
+    --scrollbar-hover: rgba(26,22,18,.22);
+    --toast-bg: #1a1612; --toast-fg: #ffffff;
+    --danger: #9a3a3a;
+  }
+  :root.dark {
+    --bg: #15130f; --bg-soft: #1c1a16; --surface: #25221d;
+    --text: #f4efe3; --text-2: #d8d0bf; --text-3: #bcb3a0;
+    --text-muted: #9a907e; --text-muted-2: #807665; --text-faint: #6b6358;
+    --border: #2e2a23; --border-strong: #3a342a; --border-soft: #221f1a;
+    --shadow-rgb: 0,0,0;
+    --row-hover: rgba(255,255,255,.035);
+    --row-hover-2: rgba(255,255,255,.06);
+    --row-selected: rgba(255,255,255,.04);
+    --scrollbar: rgba(244,239,227,.14);
+    --scrollbar-hover: rgba(244,239,227,.28);
+    --toast-bg: #f4efe3; --toast-fg: #1a1612;
+    --danger: #e88b8b;
+  }
+  html, body, #root { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    transition: background-color .2s, color .2s;
+  }
+  button { font-family: inherit; }
+  /* hide scrollbar chrome for a cleaner look */
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); border: 2px solid transparent; background-clip: content-box; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- Supabase UMD — expone window.supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="src/tweaks.jsx"></script>
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/ui.jsx"></script>
+<script type="text/babel" src="src/config.jsx"></script>
+<script type="text/babel" src="src/supabase.jsx"></script>
+<script type="text/babel" src="src/auth.jsx"></script>
+
+<script type="text/babel">
+window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "indigo",
+  "density": "regular",
+  "defaultView": "grid",
+  "dark": true
+}/*EDITMODE-END*/;
+</script>
+
+<script type="text/babel" src="src/components/icons.jsx"></script>
+<script type="text/babel" src="src/components/sidebar.jsx"></script>
+<script type="text/babel" src="src/components/topbar.jsx"></script>
+<script type="text/babel" src="src/components/list-view.jsx"></script>
+<script type="text/babel" src="src/components/grid-view.jsx"></script>
+<script type="text/babel" src="src/components/detail.jsx"></script>
+<script type="text/babel" src="src/components/bulk-bar.jsx"></script>
+<script type="text/babel" src="src/components/editor.jsx"></script>
+<script type="text/babel" src="src/components/var-filler.jsx"></script>
+<script type="text/babel" src="src/components/preview.jsx"></script>
+<script type="text/babel" src="src/components/explore.jsx"></script>
+<script type="text/babel" src="src/app.jsx"></script>
+
+<script type="text/babel">
+ReactDOM.createRoot(document.getElementById("root")).render(<StashApp />);
+</script>
+</body>
+</html>
