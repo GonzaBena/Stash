@@ -41,6 +41,32 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # Cachear el binario de Electron para evitar descargas que causan
+      # "socket hang up" por timeouts de red en los runners de GitHub.
+      - name: Cache Electron binary (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/electron
+          key: electron-linux-${{ hashFiles('**/package.json') }}
+          restore-keys: electron-linux-
+
+      - name: Cache Electron binary (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/electron
+          key: electron-macos-${{ hashFiles('**/package.json') }}
+          restore-keys: electron-macos-
+
+      - name: Cache Electron binary (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\electron\Cache
+          key: electron-windows-${{ hashFiles('**/package.json') }}
+          restore-keys: electron-windows-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -50,6 +76,13 @@ jobs:
         run: xcode-select --install || true
 
       - name: Build
+        run: pnpm run ${{ matrix.script }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retry automático si el build falla por error de red transitorio
+      - name: Retry build on failure
+        if: failure()
         run: pnpm run ${{ matrix.script }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
