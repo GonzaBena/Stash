@@ -76,16 +76,12 @@ jobs:
         run: xcode-select --install || true
 
       - name: Build
-        run: pnpm run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run ${{ matrix.script }} -- --publish never
 
       # Retry automático si el build falla por error de red transitorio
       - name: Retry build on failure
         if: failure()
-        run: pnpm run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run ${{ matrix.script }} -- --publish never
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
