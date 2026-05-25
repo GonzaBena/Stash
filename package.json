@@ -26,6 +26,9 @@
       "companion.html",
       "companion.js",
       "companion.css",
+      "settings.html",
+      "settings.js",
+      "settings.css",
       "src/**/*.jsx",
       "main.js",
       "public/**"
