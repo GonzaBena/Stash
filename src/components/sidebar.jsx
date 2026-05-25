@@ -2,6 +2,7 @@ import React from "react"
 import { AccountSection } from "@/auth"
 import { Tag } from "@/ui"
 import { AI_META } from "@/data"
+import { isElectron } from "@/lib/platform"
 
 export function Sidebar({
   prompts,
@@ -107,7 +108,7 @@ export function Sidebar({
   return (
     <aside
       style={{
-        height: "100dvh",
+        height: (!isElectron || isMobile) ? "100dvh" : undefined,
         width: isMobile ? "100vw" : 240,
         flexShrink: 0,
         borderRight: isMobile ? "none" : "1px solid var(--border)",
