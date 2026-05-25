@@ -1,21 +1,23 @@
 // src/ui.jsx — shared UI primitives + theme helpers for Stash
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { TAG_HUES, AI_META } from '@/data';
 
 // ── Theme ───────────────────────────────────────────────────────────────────
-const THEMES = {
+export const THEMES = {
   amber:   { accent: "#f2a23b", accentInk: "#3a2509", soft: "#fef3e0" },
   citrus:  { accent: "#a3c93a", accentInk: "#2c4309", soft: "#eef6d5" },
   rose:    { accent: "#ec5f7a", accentInk: "#ffffff", soft: "#fde2e8" },
   indigo:  { accent: "#6366f1", accentInk: "#ffffff", soft: "#e6e8ff" },
 };
 
-const DENSITY = {
+export const DENSITY = {
   compact:  { row: 8,  card: 12, gap: 10, font: 13.5 },
   regular:  { row: 12, card: 16, gap: 14, font: 14 },
   spacious: { row: 16, card: 20, gap: 18, font: 15 },
 };
 
 // ── Tag chip ────────────────────────────────────────────────────────────────
-function Tag({ children, on, onClick, size = "md" }) {
+export function Tag({ children, on, onClick, size = "md" }) {
   const hue = TAG_HUES[children] || { bg: "var(--row-hover-2)", fg: "var(--text-2)" };
   const pad = size === "sm" ? "1px 7px" : "2px 9px";
   return (
@@ -33,8 +35,9 @@ function Tag({ children, on, onClick, size = "md" }) {
 }
 
 // ── AI badge ────────────────────────────────────────────────────────────────
-function AIBadge({ ai, size = "md", showName = true }) {
+export function AIBadge({ ai, size = "md", showName = true }) {
   const m = AI_META[ai];
+  if (!m) return null;
   const dim = size === "sm" ? 14 : size === "lg" ? 22 : 18;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: size === "sm" ? 11.5 : 13, color: "var(--text-2)" }}>
@@ -50,7 +53,7 @@ function AIBadge({ ai, size = "md", showName = true }) {
 }
 
 // ── Star toggle ─────────────────────────────────────────────────────────────
-function Star({ on, onClick, accent, size = 16 }) {
+export function Star({ on, onClick, accent, size = 16 }) {
   return (
     <span onClick={(e) => { e.stopPropagation(); onClick && onClick(); }} style={{
       cursor: onClick ? "pointer" : "default", lineHeight: 1, fontSize: size,
@@ -62,7 +65,7 @@ function Star({ on, onClick, accent, size = 16 }) {
 }
 
 // ── Buttons ─────────────────────────────────────────────────────────────────
-function Btn({ children, primary, ghost, accent, accentInk, onClick, style, title, size = "md" }) {
+export function Btn({ children, primary, ghost, accent, accentInk, onClick, style, title, size = "md" }) {
   const pad = size === "sm" ? "5px 10px" : size === "lg" ? "10px 18px" : "7px 14px";
   const fs = size === "sm" ? 12.5 : size === "lg" ? 15 : 13.5;
   const base = {
@@ -84,7 +87,7 @@ function Btn({ children, primary, ghost, accent, accentInk, onClick, style, titl
 }
 
 // ── Checkbox ─────────────────────────────────────────────────────────────────
-function Checkbox({ checked, indeterminate, onChange, accent }) {
+export function Checkbox({ checked, indeterminate, onChange, accent }) {
   return (
     <span onClick={(e) => { e.stopPropagation(); onChange(); }} style={{
       width: 16, height: 16, borderRadius: 4, flexShrink: 0, boxSizing: "border-box",
@@ -103,12 +106,13 @@ function Checkbox({ checked, indeterminate, onChange, accent }) {
 }
 
 // ── Label (form helper) ──────────────────────────────────────────────────────
-function Label({ children }) {
+export function Label({ children }) {
   return <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, letterSpacing: 0.2 }}>{children}</div>;
 }
 
 // ── Render body with {{var}} highlights ─────────────────────────────────────
-function renderBody(text, accent) {
+export function renderBody(text, accent) {
+  if (!text) return null;
   return text.split(/(\{\{[^}]+\}\})/g).map((p, i) =>
     p.startsWith("{{")
       ? <span key={i} style={{
@@ -120,7 +124,7 @@ function renderBody(text, accent) {
   );
 }
 
-function extractVars(text) {
+export function extractVars(text) {
   const re = /\{\{([^}]+)\}\}/g;
   const out = [];
   const seen = new Set();
@@ -133,9 +137,9 @@ function extractVars(text) {
 }
 
 // ── Toast ───────────────────────────────────────────────────────────────────
-function useToast() {
-  const [t, setT] = React.useState(null);
-  const show = React.useCallback((msg, kind = "info") => {
+export function useToast() {
+  const [t, setT] = useState(null);
+  const show = useCallback((msg, kind = "info") => {
     setT({ msg, kind, id: Date.now() });
     setTimeout(() => setT(null), 1800);
   }, []);
@@ -155,8 +159,8 @@ function useToast() {
 }
 
 // ── Modal wrapper ───────────────────────────────────────────────────────────
-function Modal({ open, onClose, children, width = 520 }) {
-  React.useEffect(() => {
+export function Modal({ open, onClose, children, width = 520 }) {
+  useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -206,30 +210,3 @@ if (typeof document !== "undefined" && !document.getElementById("stash-anim")) {
   `;
   document.head.appendChild(s);
 }
-
-// ── Settings (gear) icon ────────────────────────────────────────────────────
-function SettingsIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
-               a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
-               A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
-               l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
-               A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
-               l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
-               a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
-               l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
-               a1.65 1.65 0 0 0-1.51 1z"/>
-    </svg>
-  );
-}
-
-Object.assign(window, {
-  THEMES, DENSITY,
-  Tag, AIBadge, Star, Btn, Modal,
-  Checkbox, Label,
-  SettingsIcon,
-  renderBody, extractVars, useToast,
-});

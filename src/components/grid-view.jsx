@@ -1,6 +1,18 @@
-// src/components/grid-view.jsx — GridView card layout
+import React from 'react';
+import { AIBadge, Tag, Checkbox, Star, extractVars, renderBody, DENSITY } from '@/ui';
+import { AI_META } from '@/data';
+import { CopyIcon, EditIcon } from './icons';
 
-function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit, selectedIds, onToggleSelect, onTagClick, activeTags = [] }) {
+export function EmptyState() {
+  return (
+    <div style={{ padding: 60, textAlign: "center", color: "var(--text-muted-2)" }}>
+      <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 26, color: "var(--text-2)", marginBottom: 6 }}>Nothing here yet</div>
+      <div style={{ fontSize: 13.5 }}>Try clearing a filter, or hit <kbd style={{ background: "var(--surface)", padding: "1px 6px", borderRadius: 5, border: "1px solid var(--border)", fontFamily: "ui-monospace, monospace", fontSize: 12 }}>N</kbd> to save a new one.</div>
+    </div>
+  );
+}
+
+export function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit, selectedIds, onToggleSelect, onTagClick, activeTags = [] }) {
   const d = DENSITY[density];
   const colMin = density === "compact" ? 240 : density === "spacious" ? 320 : 280;
   if (prompts.length === 0) return <div style={{ flex: 1, overflow: "auto", padding: 20 }}><EmptyState /></div>;
@@ -64,5 +76,3 @@ function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit
     </div>
   );
 }
-
-Object.assign(window, { GridView });

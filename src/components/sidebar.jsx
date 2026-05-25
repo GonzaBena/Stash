@@ -1,6 +1,9 @@
-// src/components/sidebar.jsx — Sidebar navigation + filters + account section
+import React from 'react';
+import { AccountSection } from '@/auth';
+import { Tag } from '@/ui';
+import { AI_META } from '@/data';
 
-function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobileOpen, accountProps, section, setSection }) {
+export function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobileOpen, accountProps, section, setSection }) {
   const counts = React.useMemo(() => {
     const c = {
       all:    prompts.length,
@@ -32,7 +35,7 @@ function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobi
         fontSize: 11, fontWeight: 600,
       }}>{glyph}</span>
       <span style={{ flex: 1 }}>{label}</span>
-      <span style={{ color: "var(--text-faint)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{count}</span>
+      {count !== null && <span style={{ color: "var(--text-faint)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{count}</span>}
     </div>
   );
 
@@ -117,5 +120,3 @@ function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobi
     </aside>
   );
 }
-
-Object.assign(window, { Sidebar });

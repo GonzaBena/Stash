@@ -1,6 +1,8 @@
-// src/components/detail.jsx — Detail pane (right of list view + mobile overlay)
+import React from 'react';
+import { Star, Tag, AIBadge, Btn, extractVars, renderBody } from '@/ui';
+import { CopyIcon, EditIcon, EyeOffIcon, TrashIcon } from './icons';
 
-function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onClose, isMobile, width, onTagClick, activeTags = [] }) {
+export function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onClose, isMobile, width, onTagClick, activeTags = [] }) {
   if (!p) return (
     <div style={{ flex: isMobile ? 1 : `0 0 ${width || 380}px`, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", fontStyle: "italic", fontFamily: "'Instrument Serif', serif", fontSize: 22, padding: 40, textAlign: "center", background: "var(--bg)", borderLeft: isMobile ? 0 : "1px solid var(--border)" }}>
       Select a prompt to see its body
@@ -54,5 +56,3 @@ function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, o
     </div>
   );
 }
-
-Object.assign(window, { Detail });

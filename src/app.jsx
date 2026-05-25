@@ -1,6 +1,23 @@
-// src/app.jsx — App() root component (state, sync, layout)
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { _supabase } from './supabase';
+import { useAuth } from './auth';
+import { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakRadio } from './tweaks';
+import { THEMES, useToast, extractVars } from './ui';
+import { SAMPLE_PROMPTS } from './data';
 
-function App() {
+// Components
+import { TopBar } from './components/topbar';
+import { Sidebar } from './components/sidebar';
+import { ListView, Splitter } from './components/list-view';
+import { GridView } from './components/grid-view';
+import { Detail } from './components/detail';
+import { BulkBar, ConfirmDeleteModal } from './components/bulk-bar';
+import { Editor } from './components/editor';
+import { VarFiller } from './components/var-filler';
+import { PromptPreview } from './components/preview';
+import { ExploreView } from './components/explore';
+
+export default function App() {
   const [t, setTweak] = useTweaks(window.TWEAK_DEFAULTS);
   const theme  = THEMES[t.theme] || THEMES.amber;
   const accent = theme.accent;
@@ -12,60 +29,54 @@ function App() {
   const { user, signIn, signOut } = authState;
 
   // expose CSS vars
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.style.setProperty("--accent", accent);
-    // In dark mode the "soft" tint from THEMES is too bright on dark surfaces —
-    // fall back to a low-opacity wash of the accent itself.
     document.documentElement.style.setProperty("--accent-soft", t.dark ? `${accent}26` : accentSoft);
   }, [accent, accentSoft, t.dark]);
 
   // dark mode toggle on <html>
-  React.useEffect(() => {
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", !!t.dark);
   }, [t.dark]);
 
-  const [prompts, setPrompts] = React.useState(() => {
+  const [prompts, setPrompts] = useState(() => {
     try {
       const saved = localStorage.getItem('stash:prompts');
       const parsed = saved ? JSON.parse(saved) : null;
-      // Primera vez que se abre (sin datos guardados) → carga los ejemplos
-      // Si hay datos guardados (aunque sea array vacío) → respeta lo guardado
       const raw = Array.isArray(parsed) ? parsed : SAMPLE_PROMPTS;
-      // Backfill updated_at: los prompts sin fecha usan una fecha antigua para que
-      // los datos de Supabase siempre ganen en el primer sync (si los hay).
       return raw.map(p => p.updated_at ? p : { ...p, updated_at: '2020-01-01T00:00:00.000Z' });
     } catch(e) { return SAMPLE_PROMPTS; }
   });
-  const [q, setQ] = React.useState("");
-  const [filter, setFilter] = React.useState({ scope: "all", ai: null, tags: [] });
-  const [libSort, setLibSort] = React.useState("recent"); // "recent" | "alpha" | "uses"
-  const [libDir, setLibDir] = React.useState("desc"); // "asc" | "desc"
-  const [view, setView] = React.useState(t.defaultView || "list");
-  const [selId, setSel] = React.useState(prompts[0]?.id ?? null);
-  const [editor, setEditor] = React.useState({ open: false, draft: null });
-  const [filler, setFiller] = React.useState({ open: false, prompt: null });
-  const [previewId, setPreviewId] = React.useState(null);
-  const [selectedIds, setSelectedIds] = React.useState(new Set());
-  const [confirmBulk, setConfirmBulk] = React.useState(false);
-  const [section, setSection] = React.useState("library"); // "library" | "explore"
-  const [mobileSidebar, setMobileSidebar] = React.useState(false);
-  const [mobileDetail, setMobileDetail] = React.useState(false);
-  const [detailWidth, setDetailWidth] = React.useState(() => {
+
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState({ scope: "all", ai: null, tags: [] });
+  const [libSort, setLibSort] = useState("recent");
+  const [libDir, setLibDir] = useState("desc");
+  const [view, setView] = useState(t.defaultView || "list");
+  const [selId, setSel] = useState(prompts[0]?.id ?? null);
+  const [editor, setEditor] = useState({ open: false, draft: null });
+  const [filler, setFiller] = useState({ open: false, prompt: null });
+  const [previewId, setPreviewId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [section, setSection] = useState("library");
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [mobileDetail, setMobileDetail] = useState(false);
+  const [detailWidth, setDetailWidth] = useState(() => {
     try { return Math.max(280, Math.min(720, Number(localStorage.getItem("stash:detailWidth")) || 380)); }
     catch (e) { return 380; }
   });
-  const mainRef = React.useRef(null);
+  const mainRef = useRef(null);
   const [toast, showToast] = useToast();
 
-  // Persistir prompts en localStorage cada vez que cambian
-  React.useEffect(() => {
+  // Persistir prompts en localStorage
+  useEffect(() => {
     try { localStorage.setItem('stash:prompts', JSON.stringify(prompts)); }
     catch(e) {}
   }, [prompts]);
 
   // ── Sync con Supabase ──────────────────────────────────────────────────────
-  // Merge bidireccional: last-write-wins por updated_at
-  const syncWithCloud = React.useCallback(async (currentPrompts, userId) => {
+  const syncWithCloud = useCallback(async (currentPrompts, userId) => {
     if (!_supabase) return { merged: null, error: 'Supabase no configurado' };
     authState.setSyncing(true);
     authState.setSyncError(null);
@@ -74,8 +85,6 @@ function App() {
         .from('prompts').select('*').eq('user_id', userId);
       if (fetchErr) throw fetchErr;
 
-      // Normalizar IDs a string para que 1 (number) y "1" (string de Supabase)
-      // no se traten como claves distintas en el Map y generen duplicados en el upsert.
       const remoteMap = new Map((remote || []).map(r => [String(r.id), r]));
       const localMap  = new Map(currentPrompts.map(l => [String(l.id), l]));
       const allIds    = new Set([...remoteMap.keys(), ...localMap.keys()]);
@@ -89,14 +98,12 @@ function App() {
         const lt = new Date(loc.updated_at || 0).getTime();
         const rt = new Date(rem.updated_at || 0).getTime();
         if (lt >= rt) {
-          // Local gana: preservar campos server-only que no se guardan localmente
           merged.push({ ...loc, creator_name: loc.creator_name || rem.creator_name || null });
         } else {
           const { user_id, ...r } = rem; merged.push(r);
         }
       }
 
-      // Upsert el conjunto ganador a Supabase
       const rows = merged.map(p => ({
         id: p.id, user_id: userId,
         title: p.title || '', body: p.body || '',
@@ -106,7 +113,7 @@ function App() {
         updated_at: p.updated_at || new Date().toISOString(),
         public: p.public || false,
         creator_name: p.creator_name || null,
-        source_id: p.source_id || null,  // origen del prompt si fue copiado de la comunidad
+        source_id: p.source_id || null,
       }));
       const { error: upErr } = await _supabase.from('prompts')
         .upsert(rows, { onConflict: 'id,user_id' });
@@ -120,7 +127,7 @@ function App() {
     }
   }, []);
 
-  const pushPromptToCloud = React.useCallback(async (p) => {
+  const pushPromptToCloud = useCallback(async (p) => {
     if (!user || !_supabase) return;
     try {
       let creator_verified = false;
@@ -147,8 +154,7 @@ function App() {
     }
   }, [user]);
 
-  // Auto-sync al hacer login (dispara cuando user.id pasa de null a un UUID)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user) return;
     (async () => {
       const { merged, error } = await syncWithCloud(prompts, user.id);
@@ -161,9 +167,8 @@ function App() {
         showToast('Synced with cloud ☁', 'ok');
       }
     })();
-  }, [user?.id]); // ← solo al cambiar el user ID, no en cada render
+  }, [user?.id]);
 
-  // Sync manual (botón "↕ Sync" en AccountSection)
   const handleManualSync = async () => {
     if (!user) return;
     const { merged, error } = await syncWithCloud(prompts, user.id);
@@ -177,19 +182,17 @@ function App() {
     }
   };
 
-  const [isMobile, setIsMobile] = React.useState(false);
-  React.useEffect(() => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 820);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Sync view when tweak changes from panel
-  React.useEffect(() => { if (t.defaultView && t.defaultView !== view) setView(t.defaultView); }, [t.defaultView]);
+  useEffect(() => { if (t.defaultView && t.defaultView !== view) setView(t.defaultView); }, [t.defaultView]);
 
-  // keyboard: / focus search, N new
-  React.useEffect(() => {
+  useEffect(() => {
     const onKey = (e) => {
       const tag = (e.target.tagName || "").toLowerCase();
       const inField = tag === "input" || tag === "textarea";
@@ -201,7 +204,7 @@ function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const filtered = React.useMemo(() => {
+  const filtered = useMemo(() => {
     const ql = q.toLowerCase();
     let items = prompts.filter(p => {
       if (filter.scope === "starred" && !p.star) return false;
@@ -217,7 +220,6 @@ function App() {
       return true;
     });
 
-    // Sorting logic for library
     items.sort((a, b) => {
       let vA, vB;
       if (libSort === "alpha") {
@@ -227,11 +229,9 @@ function App() {
         vA = a.uses || 0;
         vB = b.uses || 0;
       } else {
-        // Default: recent (updated_at)
         vA = new Date(a.updated_at || 0).getTime();
         vB = new Date(b.updated_at || 0).getTime();
       }
-
       if (vA === vB) return 0;
       const res = vA > vB ? 1 : -1;
       return libDir === "asc" ? res : -res;
@@ -241,7 +241,7 @@ function App() {
   }, [prompts, q, filter, libSort, libDir]);
 
   const sel = filtered.find(p => p.id === selId) || filtered[0] || null;
-  React.useEffect(() => {
+  useEffect(() => {
     if (!filtered.find(p => p.id === selId) && filtered[0]) setSel(filtered[0].id);
   }, [filtered]);
 
@@ -257,29 +257,23 @@ function App() {
     }));
   };
 
-  // ── Bulk selection helpers ──────────────────────────────────────────────────
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  // ids = array of ids to set; clear = true removes all instead
-  const selectAllVisible = (ids, clear = false) =>
-    setSelectedIds(clear ? new Set() : new Set(ids));
+  const selectAllVisible = (ids, clear = false) => setSelectedIds(clear ? new Set() : new Set(ids));
   const clearSelection = () => setSelectedIds(new Set());
-  // Pide confirmación antes de borrar
   const requestBulkDelete = () => setConfirmBulk(true);
   const bulkDelete = async () => {
     const count = selectedIds.size;
-    // Captura los IDs en este momento para que el filter no dependa del closure
     const ids = new Set(selectedIds);
     setPrompts(ps => ps.filter(p => !ids.has(p.id)));
     setSelectedIds(new Set());
     setConfirmBulk(false);
     showToast(`Deleted ${count} prompt${count !== 1 ? "s" : ""}`, "ok");
     if (user && _supabase) {
-      await _supabase.from('prompts').delete()
-        .in('id', [...ids]).eq('user_id', user.id);
+      await _supabase.from('prompts').delete().in('id', [...ids]).eq('user_id', user.id);
     }
   };
 
@@ -320,24 +314,13 @@ function App() {
 
   const openNew = () => setEditor({
     open: true,
-    draft: {
-      title: "",
-      body: "",
-      ai: filter.ai || "claude",
-      tags: [...(filter.tags || [])],
-      star: filter.scope === "starred"
-    }
+    draft: { title: "", body: "", ai: filter.ai || "claude", tags: [...(filter.tags || [])], star: filter.scope === "starred" }
   });
   const openEdit = (p) => setEditor({ open: true, draft: { ...p } });
   const saveDraft = async () => {
     const d = editor.draft;
     if (!d.title.trim()) { showToast("Add a title first"); return; }
-
-    // Calcular creator_name ahora para guardarlo local Y remotamente
-    const creatorName = d.public && user
-      ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email)
-      : (d.creator_name || null);
-
+    const creatorName = d.public && user ? (user.user_metadata?.full_name || user.user_metadata?.name || user.email) : (d.creator_name || null);
     let savedPrompt;
     if (d.id) {
       savedPrompt = { ...d, creator_name: creatorName, edited: "just now", updated_at: new Date().toISOString() };
@@ -350,54 +333,22 @@ function App() {
       showToast("Prompt saved", "ok");
     }
     setEditor({ open: false, draft: null });
-
-    // Push inmediato a Supabase si el usuario está logueado
     pushPromptToCloud(savedPrompt);
   };
-  // ── Guardar copia de un prompt comunitario ────────────────────────────────
+
   const saveFromCommunity = (communityPrompt) => {
     if (!user) { showToast("Sign in to save prompts", "error"); return; }
-
-    // Dedup: ¿Es un prompt que vos mismo subiste?
-    if (communityPrompt.user_id === user.id) {
-      showToast("Este prompt ya es tuyo 👆", "error");
-      return;
-    }
-
-    // Dedup: ¿Ya tenés una copia guardada (por ID directo o por source_id)?
-    const alreadySaved = prompts.some(
-      p => p.id === communityPrompt.id || p.source_id === communityPrompt.id
-    );
-    if (alreadySaved) {
-      showToast("Ya tenés este prompt guardado", "error");
-      return;
-    }
-
-    const { user_id, creator_name, creator_verified, saves: _saves, public: _pub, ...rest } = communityPrompt;
+    if (communityPrompt.user_id === user.id) { showToast("Este prompt ya es tuyo 👆", "error"); return; }
+    const alreadySaved = prompts.some(p => p.id === communityPrompt.id || p.source_id === communityPrompt.id);
+    if (alreadySaved) { showToast("Ya tenés este prompt guardado", "error"); return; }
+    const { user_id, creator_name, creator_verified, saves, public: _pub, ...rest } = communityPrompt;
     const now = new Date().toISOString();
-    const copy = {
-      ...rest,
-      id: crypto.randomUUID(),
-      source_id: communityPrompt.id,   // rastrea el prompt original para dedup futuro
-      star: false,
-      uses: 0,
-      edited: "just now",
-      updated_at: now,
-      public: false,
-    };
+    const copy = { ...rest, id: crypto.randomUUID(), source_id: communityPrompt.id, star: false, uses: 0, edited: "just now", updated_at: now, public: false };
     setPrompts(ps => [copy, ...ps]);
     showToast("Saved to your library ✓", "ok");
-
     if (_supabase && user) {
-      // 1. Persistir la copia inmediatamente en Supabase
       pushPromptToCloud(copy);
-
-      // 2. Incrementar el contador de saves del prompt original
-      _supabase
-        .rpc('increment_prompt_saves', { prompt_id: communityPrompt.id })
-        .then(({ error }) => {
-          if (error) console.warn('[Stash] increment_prompt_saves falló:', error.message);
-        });
+      _supabase.rpc('increment_prompt_saves', { prompt_id: communityPrompt.id });
     }
   };
 
@@ -422,51 +373,20 @@ function App() {
     showToast("Quitado de Explore", "ok");
   };
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-  const showDetailPane = view === "list" && !isMobile;
-  const showMobileDetail = isMobile && mobileDetail && sel;
-
-  const accountProps = {
-    user,
-    loading:   authState.loading,
-    syncing:   authState.syncing,
-    lastSync:  authState.lastSync,
-    syncError: authState.syncError,
-    signIn,
-    signOut,
-    onSync:    handleManualSync,
-  };
+  const accountProps = { user, loading: authState.loading, syncing: authState.syncing, lastSync: authState.lastSync, syncError: authState.syncError, signIn, signOut, onSync: handleManualSync };
 
   const onTagClick = (t) => {
     setSection("library");
     const tags = filter.tags || [];
-    const nextTags = tags.includes(t)
-      ? tags.filter(tag => tag !== t)
-      : [...tags, t];
+    const nextTags = tags.includes(t) ? tags.filter(tag => tag !== t) : [...tags, t];
     setFilter({ ...filter, tags: nextTags });
   };
 
   return (
-    <div style={{
-      height: "100dvh", display: "flex", flexDirection: "column",
-      background: "var(--bg)", color: "var(--text)",
-      fontFamily: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif",
-      fontSize: 14,
-    }}>
-      <TopBar q={q} setQ={setQ} view={view} setView={setView} onNew={openNew}
-        accent={accent} accentInk={accentInk}
-        onMenu={() => setMobileSidebar(true)} isMobile={isMobile}
-        dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)}
-        section={section}
-        libSort={libSort} setLibSort={setLibSort}
-        libDir={libDir} setLibDir={setLibDir}
-      />
-
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)", fontFamily: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif", fontSize: 14 }}>
+      <TopBar q={q} setQ={setQ} view={view} setView={setView} onNew={openNew} accent={accent} accentInk={accentInk} onMenu={() => setMobileSidebar(true)} isMobile={isMobile} dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)} section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir} />
       <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
-        {/* sidebar (desktop static, mobile drawer) */}
-        {!isMobile && (
-          <Sidebar prompts={prompts} filter={filter} setFilter={setFilter} accent={accent} accentSoft={accentSoft} accountProps={accountProps} section={section} setSection={setSection} />
-        )}
+        {!isMobile && <Sidebar prompts={prompts} filter={filter} setFilter={setFilter} accent={accent} accentSoft={accentSoft} accountProps={accountProps} section={section} setSection={setSection} />}
         {isMobile && mobileSidebar && (
           <div onClick={() => setMobileSidebar(false)} style={{ position: "fixed", inset: 0, background: "rgba(26,22,18,.3)", zIndex: 100, animation: "stashFadeIn .15s ease-out" }}>
             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: 0, left: 0, bottom: 0, animation: "slideInLeft .2s cubic-bezier(.2,.7,.3,1)" }}>
@@ -474,189 +394,43 @@ function App() {
             </div>
           </div>
         )}
-
-        {/* center */}
         <main ref={mainRef} style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: view === "list" ? "var(--surface)" : "var(--bg)" }}>
-          {section === "library" && (
-            <BulkBar
-              count={selectedIds.size}
-              total={filtered.length}
-              onSelectAll={() => selectAllVisible(filtered.map(p => p.id))}
-              onClear={clearSelection}
-              onDelete={requestBulkDelete}
-            />
-          )}
+          {section === "library" && <BulkBar count={selectedIds.size} total={filtered.length} onSelectAll={() => selectAllVisible(filtered.map(p => p.id))} onClear={clearSelection} onDelete={requestBulkDelete} />}
           <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-          {section === "explore" ? (
-            <ExploreView
-              accent={accent}
-              accentSoft={accentSoft}
-              accentInk={accentInk}
-              user={user}
-              onSave={saveFromCommunity}
-              showToast={showToast}
-              view={view}
-              density={t.density}
-            />
-          ) : view === "list" ? (
-            <ListView
-              prompts={filtered}
-              selId={sel?.id}
-              setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); }}
-              toggleStar={toggleStar}
-              accent={accent}
-              density={t.density}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onSelectAllVisible={selectAllVisible}
-              onTagClick={onTagClick}
-              activeTags={filter.tags}
-            />
-          ) : (
-            <GridView
-              prompts={filtered}
-              setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); else setPreviewId(id); }}
-              toggleStar={toggleStar}
-              accent={accent}
-              density={t.density}
-              onCopy={onCopy}
-              onEdit={openEdit}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onTagClick={onTagClick}
-              activeTags={filter.tags}
-            />
-          )}
-
-          {/* resize handle + detail pane (list view, desktop) */}
-          {section === "library" && showDetailPane && (
+          {section === "explore" ? <ExploreView accent={accent} accentSoft={accentSoft} accentInk={accentInk} user={user} onSave={saveFromCommunity} showToast={showToast} view={view} density={t.density} /> : view === "list" ? <ListView prompts={filtered} selId={sel?.id} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); }} toggleStar={toggleStar} accent={accent} density={t.density} selectedIds={selectedIds} onToggleSelect={toggleSelect} onSelectAllVisible={selectAllVisible} onTagClick={onTagClick} activeTags={filter.tags} /> : <GridView prompts={filtered} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); else setPreviewId(id); }} toggleStar={toggleStar} accent={accent} density={t.density} onCopy={onCopy} onEdit={openEdit} selectedIds={selectedIds} onToggleSelect={toggleSelect} onTagClick={onTagClick} activeTags={filter.tags} />}
+          {section === "library" && view === "list" && !isMobile && (
             <React.Fragment>
-              <Splitter
-                accent={accent}
-                onDrag={(clientX) => {
-                  if (clientX === null) {
-                    setDetailWidth(380);
-                    try { localStorage.setItem("stash:detailWidth", "380"); } catch (e) {}
-                    return;
-                  }
-                  const r = mainRef.current?.getBoundingClientRect();
-                  if (!r) return;
-                  // detail width = right edge of main - cursor x, clamped
-                  const minW = 280;
-                  const maxW = Math.min(720, r.width - 320); // leave space for list
-                  const w = Math.max(minW, Math.min(maxW, r.right - clientX));
-                  setDetailWidth(w);
-                  try { localStorage.setItem("stash:detailWidth", String(Math.round(w))); } catch (e) {}
-                }}
-              />
-              <Detail
-                p={sel} accent={accent} accentSoft={accentSoft}
-                toggleStar={toggleStar}
-                onCopy={onCopy} onEdit={openEdit} onDelete={onDelete} onUnpublish={onUnpublish}
-                isMobile={false}
-                width={detailWidth}
-                onTagClick={onTagClick}
-                activeTags={filter.tags}
-              />
+              <Splitter accent={accent} onDrag={(clientX) => {
+                if (clientX === null) { setDetailWidth(380); return; }
+                const r = mainRef.current?.getBoundingClientRect();
+                if (!r) return;
+                const w = Math.max(280, Math.min(Math.min(720, r.width - 320), r.right - clientX));
+                setDetailWidth(w);
+              }} />
+              <Detail p={sel} accent={accent} accentSoft={accentSoft} toggleStar={toggleStar} onCopy={onCopy} onEdit={openEdit} onDelete={onDelete} onUnpublish={onUnpublish} isMobile={false} width={detailWidth} onTagClick={onTagClick} activeTags={filter.tags} />
             </React.Fragment>
           )}
-          </div>{/* end flex row inside main */}
+          </div>
         </main>
-
-        {/* mobile detail overlay */}
-        {showMobileDetail && (
+        {isMobile && mobileDetail && sel && (
           <div style={{ position: "absolute", inset: 0, background: "var(--bg)", zIndex: 90, display: "flex", flexDirection: "column", animation: "slideInRight .2s cubic-bezier(.2,.7,.3,1)" }}>
-            <Detail
-              p={sel} accent={accent} accentSoft={accentSoft}
-              toggleStar={toggleStar}
-              onCopy={onCopy} onEdit={openEdit} onDelete={(id) => { onDelete(id); setMobileDetail(false); }} onUnpublish={onUnpublish}
-              isMobile={true}
-              onClose={() => setMobileDetail(false)}
-              onTagClick={onTagClick}
-              activeTags={filter.tags}
-            />
+            <Detail p={sel} accent={accent} accentSoft={accentSoft} toggleStar={toggleStar} onCopy={onCopy} onEdit={openEdit} onDelete={(id) => { onDelete(id); setMobileDetail(false); }} onUnpublish={onUnpublish} isMobile={true} onClose={() => setMobileDetail(false)} onTagClick={onTagClick} activeTags={filter.tags} />
           </div>
         )}
       </div>
-
-      <Editor
-        open={editor.open} draft={editor.draft}
-        setDraft={(d) => setEditor({ ...editor, draft: d })}
-        onSave={saveDraft} onClose={() => setEditor({ open: false, draft: null })}
-        accent={accent} accentInk={accentInk} user={user}
-      />
-      <VarFiller
-        open={filler.open} prompt={filler.prompt}
-        onClose={() => setFiller({ open: false, prompt: null })}
-        onConfirm={onFillerConfirm}
-        accent={accent} accentInk={accentInk}
-      />
-      <PromptPreview
-        open={previewId !== null && !isMobile}
-        prompt={filtered.find(p => p.id === previewId)}
-        onClose={() => setPreviewId(null)}
-        accent={accent} accentSoft={accentSoft} accentInk={accentInk}
-        toggleStar={toggleStar}
-        onCopy={onCopy}
-        onEdit={(p) => { setPreviewId(null); openEdit(p); }}
-        onDelete={(id) => { onDelete(id); setPreviewId(null); }}
-        onUnpublish={onUnpublish}
-        onPrev={() => {
-          const i = filtered.findIndex(p => p.id === previewId);
-          if (i > 0) { setPreviewId(filtered[i - 1].id); setSel(filtered[i - 1].id); }
-        }}
-        onNext={() => {
-          const i = filtered.findIndex(p => p.id === previewId);
-          if (i >= 0 && i < filtered.length - 1) { setPreviewId(filtered[i + 1].id); setSel(filtered[i + 1].id); }
-        }}
-        hasPrev={(() => { const i = filtered.findIndex(p => p.id === previewId); return i > 0; })()}
-        hasNext={(() => { const i = filtered.findIndex(p => p.id === previewId); return i >= 0 && i < filtered.length - 1; })()}
-      />
-
-      <ConfirmDeleteModal
-        open={confirmBulk}
-        count={selectedIds.size}
-        onConfirm={bulkDelete}
-        onCancel={() => setConfirmBulk(false)}
-      />
-
+      <Editor open={editor.open} draft={editor.draft} setDraft={(d) => setEditor({ ...editor, draft: d })} onSave={saveDraft} onClose={() => setEditor({ open: false, draft: null })} accent={accent} accentInk={accentInk} user={user} />
+      <VarFiller open={filler.open} prompt={filler.prompt} onClose={() => setFiller({ open: false, prompt: null })} onConfirm={onFillerConfirm} accent={accent} accentInk={accentInk} />
+      <PromptPreview open={previewId !== null && !isMobile} prompt={filtered.find(p => p.id === previewId)} onClose={() => setPreviewId(null)} accent={accent} accentSoft={accentSoft} accentInk={accentInk} toggleStar={toggleStar} onCopy={onCopy} onEdit={(p) => { setPreviewId(null); openEdit(p); }} onDelete={(id) => { onDelete(id); setPreviewId(null); }} onUnpublish={onUnpublish} onPrev={() => { const i = filtered.findIndex(p => p.id === previewId); if (i > 0) { setPreviewId(filtered[i - 1].id); setSel(filtered[i - 1].id); } }} onNext={() => { const i = filtered.findIndex(p => p.id === previewId); if (i >= 0 && i < filtered.length - 1) { setPreviewId(filtered[i + 1].id); setSel(filtered[i + 1].id); } }} hasPrev={filtered.findIndex(p => p.id === previewId) > 0} hasNext={filtered.findIndex(p => p.id === previewId) >= 0 && filtered.findIndex(p => p.id === previewId) < filtered.length - 1} />
+      <ConfirmDeleteModal open={confirmBulk} count={selectedIds.size} onConfirm={bulkDelete} onCancel={() => setConfirmBulk(false)} />
       {toast}
-
       <TweaksPanel>
         <TweakSection label="Appearance" />
-        <TweakToggle label="Dark mode" value={!!t.dark}
-          onChange={(v) => setTweak("dark", v)} />
-        <TweakColor
-          label="Accent"
-          value={t.theme}
-          options={["amber", "citrus", "rose", "indigo"].map(k => THEMES[k].accent)}
-          onChange={(v) => {
-            const k = Object.keys(THEMES).find(k => THEMES[k].accent === v) || "amber";
-            setTweak("theme", k);
-          }}
-        />
+        <TweakToggle label="Dark mode" value={!!t.dark} onChange={(v) => setTweak("dark", v)} />
+        <TweakColor label="Accent" value={t.theme} options={Object.keys(THEMES).map(k => THEMES[k].accent)} onChange={(v) => setTweak("theme", Object.keys(THEMES).find(k => THEMES[k].accent === v) || "amber")} />
         <TweakSection label="Layout" />
-        <TweakRadio label="Density" value={t.density}
-          options={["compact", "regular", "spacious"]}
-          onChange={(v) => setTweak("density", v)} />
-        <TweakRadio label="Default view" value={t.defaultView}
-          options={["list", "grid"]}
-          onChange={(v) => { setTweak("defaultView", v); setView(v); }} />
+        <TweakRadio label="Density" value={t.density} options={["compact", "regular", "spacious"]} onChange={(v) => setTweak("density", v)} />
+        <TweakRadio label="Default view" value={t.defaultView} options={["list", "grid"]} onChange={(v) => { setTweak("defaultView", v); setView(v); }} />
       </TweaksPanel>
     </div>
   );
 }
-
-// extra mobile keyframes
-if (typeof document !== "undefined" && !document.getElementById("stash-anim-mobile")) {
-  const s = document.createElement("style");
-  s.id = "stash-anim-mobile";
-  s.textContent = `
-    @keyframes slideInLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}
-    @keyframes slideInRight{from{transform:translateX(8%);opacity:0}to{transform:translateX(0);opacity:1}}
-    @keyframes stashSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-  `;
-  document.head.appendChild(s);
-}
-
-window.StashApp = App;

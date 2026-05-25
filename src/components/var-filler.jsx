@@ -1,6 +1,7 @@
-// src/components/var-filler.jsx — VarFiller modal
+import React from 'react';
+import { Modal, Label, Btn, extractVars, renderBody } from '@/ui';
 
-function VarFiller({ open, prompt, onClose, onConfirm, accent, accentInk }) {
+export function VarFiller({ open, prompt, onClose, onConfirm, accent, accentInk }) {
   const vars = React.useMemo(() => prompt ? extractVars(prompt.body) : [], [prompt]);
   const [vals, setVals] = React.useState({});
   React.useEffect(() => { if (open) setVals({}); }, [open, prompt?.id]);
@@ -38,5 +39,3 @@ function VarFiller({ open, prompt, onClose, onConfirm, accent, accentInk }) {
     </Modal>
   );
 }
-
-Object.assign(window, { VarFiller });

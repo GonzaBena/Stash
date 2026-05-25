@@ -1,8 +1,9 @@
-// src/components/topbar.jsx — Top header bar
+import React from 'react';
+import { Btn } from '@/ui';
+import { ipc, isElectron } from '@/lib/platform';
+import { MenuIcon, SearchIcon, ArrowUpIcon, ArrowDownIcon, ListIcon, GridIcon, SunIcon, MoonIcon, SettingsIcon, PlusIcon, vToggleBtn } from './icons';
 
-const { ipcRenderer } = require('electron');
-
-function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark, section, libSort, setLibSort, libDir, setLibDir }) {
+export function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark, section, libSort, setLibSort, libDir, setLibDir }) {
   return (
     <header style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -73,10 +74,12 @@ function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMo
         {dark ? <SunIcon /> : <MoonIcon />}
       </button>
 
-      <button className="stash-iconbtn" onClick={() => ipcRenderer.send('open-settings')} title="Configuración"
-        style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
-        <SettingsIcon size={15} />
-      </button>
+      {isElectron && (
+        <button className="stash-iconbtn" onClick={() => ipc.send('open-settings')} title="Configuración"
+          style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+          <SettingsIcon size={15} />
+        </button>
+      )}
 
       <Btn primary accent={accent} accentInk={accentInk} onClick={onNew} style={{ paddingLeft: 12 }}>
         <PlusIcon />{!isMobile && <span>New</span>}
@@ -84,5 +87,3 @@ function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMo
     </header>
   );
 }
-
-Object.assign(window, { TopBar });

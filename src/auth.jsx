@@ -1,4 +1,6 @@
-// src/auth.jsx — Google OAuth (Supabase) + AccountSection para el sidebar
+import React, { useState, useEffect } from 'react';
+import { ipc } from '@/lib/platform';
+import { _supabase } from '@/supabase';
 
 // ── Animación de spin para el icono de sync ──────────────────────────────────
 if (typeof document !== 'undefined' && !document.getElementById('stash-auth-anim')) {
@@ -14,20 +16,15 @@ if (typeof document !== 'undefined' && !document.getElementById('stash-auth-anim
 }
 
 // ── Hook useAuth ─────────────────────────────────────────────────────────────
-function useAuth() {
-  const [user,      setUser]      = React.useState(null);
-  const [loading,   setLoading]   = React.useState(true);
-  const [syncing,   setSyncing]   = React.useState(false);
-  const [lastSync,  setLastSync]  = React.useState(null);
-  const [syncError, setSyncError] = React.useState(null);
-
-  // Acceso a ipcRenderer (disponible porque nodeIntegration: true)
-  const ipc = typeof require !== 'undefined'
-    ? require('electron').ipcRenderer
-    : null;
+export function useAuth() {
+  const [user,      setUser]      = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [syncing,   setSyncing]   = useState(false);
+  const [lastSync,  setLastSync]  = useState(null);
+  const [syncError, setSyncError] = useState(null);
 
   // Restaurar sesión al montar + suscribirse a cambios
-  React.useEffect(() => {
+  useEffect(() => {
     if (!_supabase) { setLoading(false); return; }
 
     _supabase.auth.getSession().then(({ data: { session } }) => {
@@ -45,7 +42,7 @@ function useAuth() {
   }, []);
 
   // Escuchar el código OAuth enviado desde main.js via IPC
-  React.useEffect(() => {
+  useEffect(() => {
     if (!ipc || !_supabase) return;
 
     const handler = async (_event, { code, error }) => {
@@ -66,28 +63,36 @@ function useAuth() {
 
   // Iniciar login con Google
   const signIn = async () => {
-    if (!_supabase || !ipc) {
+    if (!_supabase) {
       setSyncError('Supabase no configurado. Revisa src/supabase.jsx');
       return;
     }
     setSyncError(null);
     try {
-      // 1. Pide a main.js que levante el servidor local de callback
-      const port = await ipc.invoke('start-auth-server');
-      const redirectTo = `http://127.0.0.1:${port}/callback`;
+      if (ipc && typeof ipc.invoke === 'function') {
+        // Modo Electron
+        const port = await ipc.invoke('start-auth-server');
+        const redirectTo = `http://127.0.0.1:${port}/callback`;
 
-      // 2. Genera la URL de OAuth (sin abrir el browser todavía)
-      const { data, error } = await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,  // nosotros abrimos el browser vía IPC
-        },
-      });
-      if (error) throw error;
-
-      // 3. Abre la URL en el browser del sistema
-      await ipc.invoke('open-external', data.url);
+        const { data, error } = await _supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true,
+          },
+        });
+        if (error) throw error;
+        await ipc.invoke('open-external', data.url);
+      } else {
+        // Modo Web
+        const { error } = await _supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+      }
     } catch (err) {
       setSyncError(err.message || 'Error al iniciar sesión');
     }
@@ -110,7 +115,7 @@ function useAuth() {
 }
 
 // ── Componente AccountSection ─────────────────────────────────────────────────
-function AccountSection({ accent, user, loading, syncing, lastSync, syncError, signIn, signOut, onSync }) {
+export function AccountSection({ accent, user, loading, syncing, lastSync, syncError, signIn, signOut, onSync }) {
   const avatarUrl = user?.user_metadata?.avatar_url;
   const email     = user?.email ?? '';
   const name      = user?.user_metadata?.full_name || user?.user_metadata?.name || email;
@@ -156,7 +161,6 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
           </code>
         </div>
       ) : !user ? (
-        /* ── Estado: no autenticado ── */
         <button
           onClick={signIn}
           style={{
@@ -170,7 +174,6 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
           onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-2)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
-          {/* Google "G" logo SVG */}
           <svg width="16" height="16" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -180,10 +183,7 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
           Sign in with Google
         </button>
       ) : (
-        /* ── Estado: autenticado ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-
-          {/* Fila de identidad */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px' }}>
             {avatarUrl ? (
               <img
@@ -209,7 +209,6 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
             </span>
           </div>
 
-          {/* Estado de sincronización */}
           <div style={{
             padding: '0 4px', fontSize: 12, color: 'var(--text-faint)',
             display: 'flex', alignItems: 'center', gap: 5, minHeight: 18,
@@ -228,7 +227,6 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
             )}
           </div>
 
-          {/* Botones de acción */}
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               onClick={onSync}
@@ -241,23 +239,8 @@ function AccountSection({ accent, user, loading, syncing, lastSync, syncError, s
               Sign out
             </button>
           </div>
-
-          {/* Mensaje de error expandido */}
-          {syncError && (
-            <div style={{
-              fontSize: 11, color: 'var(--danger)',
-              padding: '3px 4px', lineHeight: 1.45,
-              wordBreak: 'break-word',
-            }}>
-              {syncError}
-            </div>
-          )}
-
         </div>
       )}
     </div>
   );
 }
-
-// Exportar en window para que app.jsx los use
-Object.assign(window, { useAuth, AccountSection });

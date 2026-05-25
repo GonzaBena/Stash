@@ -1,15 +1,8 @@
-// src/components/list-view.jsx — ListView, Splitter, EmptyState
+import React from 'react';
+import { Checkbox, Star, Tag, AIBadge, extractVars, DENSITY } from '@/ui';
+import { EmptyState } from './grid-view';
 
-function EmptyState() {
-  return (
-    <div style={{ padding: 60, textAlign: "center", color: "var(--text-muted-2)" }}>
-      <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 26, color: "var(--text-2)", marginBottom: 6 }}>Nothing here yet</div>
-      <div style={{ fontSize: 13.5 }}>Try clearing a filter, or hit <kbd style={{ background: "var(--surface)", padding: "1px 6px", borderRadius: 5, border: "1px solid var(--border)", fontFamily: "ui-monospace, monospace", fontSize: 12 }}>N</kbd> to save a new one.</div>
-    </div>
-  );
-}
-
-function ListView({ prompts, selId, setSel, toggleStar, accent, density, selectedIds, onToggleSelect, onSelectAllVisible, onTagClick, activeTags = [] }) {
+export function ListView({ prompts, selId, setSel, toggleStar, accent, density, selectedIds, onToggleSelect, onSelectAllVisible, onTagClick, activeTags = [] }) {
   const d = DENSITY[density];
   const allSelected   = prompts.length > 0 && prompts.every(p => selectedIds.has(p.id));
   const someSelected  = prompts.some(p => selectedIds.has(p.id));
@@ -63,7 +56,7 @@ function ListView({ prompts, selId, setSel, toggleStar, accent, density, selecte
   );
 }
 
-function Splitter({ onDrag, accent }) {
+export function Splitter({ onDrag, accent }) {
   const [hover, setHover] = React.useState(false);
   const [active, setActive] = React.useState(false);
   const onMouseDown = (e) => {
@@ -118,5 +111,3 @@ function Splitter({ onDrag, accent }) {
     </div>
   );
 }
-
-Object.assign(window, { ListView, Splitter, EmptyState });

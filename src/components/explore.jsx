@@ -1,20 +1,22 @@
-// src/components/explore.jsx — Community: ExploreView, ExplorePreview, UserProfile
+import React from 'react';
+import { AIBadge, Tag, Modal, Btn, extractVars, renderBody, DENSITY } from '@/ui';
+import { AI_META } from '@/data';
+import { _supabase } from '@/supabase';
+import { SearchIcon } from './icons';
 
-// ── Local icons ───────────────────────────────────────────────────────────────
-const SaveIcon = () => (
+export const SaveIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
   </svg>
 );
 
-const VerifiedBadge = () => (
+export const VerifiedBadge = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="#0ea5e9" title="Verified creator" style={{ flexShrink: 0 }}>
     <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82-1.89-3.2L12 2.96 8.6 1.5 6.71 4.69 3.1 5.5l.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.82 1.89 3.2L12 21.04l3.4 1.47 1.89-3.2 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z"/>
   </svg>
 );
 
-// ── CommunityCard — tarjeta compartida por ExploreView y UserProfile ──────────
-function CommunityCard({ p, accent, user, onSave, onCardClick, onCreatorClick }) {
+export function CommunityCard({ p, accent, user, onSave, onCardClick, onCreatorClick }) {
   const m = AI_META[p.ai] || AI_META.generic;
   const vars = extractVars(p.body || "");
   return (
@@ -101,8 +103,7 @@ function CommunityCard({ p, accent, user, onSave, onCardClick, onCreatorClick })
   );
 }
 
-// ── CommunityRow — fila para vista de lista en Explore ──────────────────────
-function CommunityRow({ p, accent, user, onSave, onCardClick, onCreatorClick, density }) {
+export function CommunityRow({ p, accent, user, onSave, onCardClick, onCreatorClick, density }) {
   const d = DENSITY[density] || DENSITY.regular;
   const vars = extractVars(p.body || "");
   return (
@@ -157,8 +158,7 @@ function CommunityRow({ p, accent, user, onSave, onCardClick, onCreatorClick, de
   );
 }
 
-// ── ExplorePreview — modal de detalle de un prompt comunitario ────────────────
-function ExplorePreview({ open, prompt, onClose, accent, accentSoft, accentInk, user, onSave, onViewProfile }) {
+export function ExplorePreview({ open, prompt, onClose, accent, accentSoft, accentInk, user, onSave, onViewProfile }) {
   if (!open || !prompt) return null;
   const vars = extractVars(prompt.body || "");
   const m = AI_META[prompt.ai] || AI_META.generic;
@@ -253,8 +253,7 @@ function ExplorePreview({ open, prompt, onClose, accent, accentSoft, accentInk, 
   );
 }
 
-// ── UserProfile — todos los prompts públicos de un creador ────────────────────
-function UserProfile({ userId, creatorName, creatorVerified, accent, accentSoft, accentInk, user, onSave, onBack }) {
+export function UserProfile({ userId, creatorName, creatorVerified, accent, accentSoft, accentInk, user, onSave, onBack }) {
   const [prompts, setPrompts] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error,   setError]   = React.useState(null);
@@ -354,8 +353,7 @@ function UserProfile({ userId, creatorName, creatorVerified, accent, accentSoft,
   );
 }
 
-// ── ExploreView — cuadrícula principal de la comunidad ────────────────────────
-function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast, view = "grid", density = "regular" }) {
+export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast, view = "grid", density = "regular" }) {
   const [results,       setResults]       = React.useState(() => {
     try {
       const cached = localStorage.getItem('stash:explore_cache');
@@ -621,5 +619,3 @@ function pillStyle(active, color, inkColor) {
     cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
   };
 }
-
-Object.assign(window, { ExploreView, ExplorePreview, UserProfile, CommunityCard });

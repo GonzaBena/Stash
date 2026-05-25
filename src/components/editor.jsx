@@ -1,6 +1,8 @@
-// src/components/editor.jsx — Editor modal
+import React from 'react';
+import { Modal, Label, Tag, Checkbox, Btn, extractVars } from '@/ui';
+import { AI_META, TAG_HUES } from '@/data';
 
-function Editor({ open, draft, setDraft, onSave, onClose, accent, accentInk, user }) {
+export function Editor({ open, draft, setDraft, onSave, onClose, accent, accentInk, user }) {
   if (!open || !draft) return null;
   const vars = extractVars(draft.body || "");
   return (
@@ -97,5 +99,3 @@ function Editor({ open, draft, setDraft, onSave, onClose, accent, accentInk, use
     </Modal>
   );
 }
-
-Object.assign(window, { Editor });

@@ -1,6 +1,6 @@
 // src/data.jsx — sample prompts + metadata, exported on window
 
-const TAG_HUES = {
+export const TAG_HUES = {
   dev:       { bg: "#e8f0fe", fg: "#1d4ed8" },
   review:    { bg: "#fef3e8", fg: "#9a5a00" },
   writing:   { bg: "#fce8f3", fg: "#a31764" },
@@ -17,7 +17,7 @@ const TAG_HUES = {
   design:    { bg: "#fde6f3", fg: "#831843" },
 };
 
-const AI_META = {
+export const AI_META = {
   claude:     { name: "Claude",     short: "Claude",  color: "#d97757", glyph: "✦" },
   chatgpt:    { name: "ChatGPT",    short: "GPT",     color: "#10a37f", glyph: "◎" },
   gemini:     { name: "Gemini",     short: "Gemini",  color: "#5b8def", glyph: "♢" },
@@ -25,7 +25,7 @@ const AI_META = {
   generic:    { name: "Any LLM",    short: "Any",     color: "#6b6358", glyph: "○" },
 };
 
-const SAMPLE_PROMPTS = [
+export const SAMPLE_PROMPTS = [
   { id: 1,  title: "Code review checklist",        ai: "claude",     tags: ["dev","review"],   star: true,  uses: 47, edited: "2d",
     body: "You are a senior staff engineer reviewing a pull request.\n\nReview the diff below for:\n1. Correctness & edge cases\n2. Readability and naming\n3. Test coverage\n4. Performance hot paths\n5. Security (auth, injection, secrets)\n\nReturn findings as a bulleted list grouped by severity (blocker / nit). End with one open question.\n\nDiff:\n{{diff}}" },
   { id: 2,  title: "Blog post outline",            ai: "chatgpt",    tags: ["writing","seo"],  star: true,  uses: 28, edited: "5h",
@@ -57,5 +57,3 @@ const SAMPLE_PROMPTS = [
   { id: 15, title: "Compare two products",         ai: "perplexity", tags: ["research","marketing"], star: false, uses: 11, edited: "4d",
     body: "Compare {{a}} vs {{b}} on:\n- Pricing model\n- Target user\n- Standout feature\n- 1 weakness each\n\nReturn as a tidy markdown table." },
 ];
-
-Object.assign(window, { AI_META, TAG_HUES, SAMPLE_PROMPTS });

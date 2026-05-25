@@ -1,8 +1,46 @@
 const { app, BrowserWindow, ipcMain, shell, globalShortcut, screen, Tray, Menu, nativeImage } = require('electron');
 const http   = require('http');
+const net    = require('net');
 const urlMod = require('url');
 const path   = require('path');
 const fs     = require('fs');
+
+const VITE_PORT = 3000;
+
+// Detecta si el servidor Vite está corriendo en localhost:VITE_PORT
+function isViteRunning() {
+  return new Promise(resolve => {
+    const sock = net.createConnection({ port: VITE_PORT, host: '127.0.0.1' });
+    sock.once('connect', () => { sock.destroy(); resolve(true); });
+    sock.once('error', () => resolve(false));
+  });
+}
+
+// Carga la URL correcta según el entorno:
+//   0. ELECTRON_START_URL seteado (via pnpm dev) → esa URL directamente
+//   1. Vite dev server corriendo en :3000         → http://localhost:3000
+//   2. Build web disponible                        → dist-web/index.html
+//   3. Fallback                                    → Stash.html (legado UMD/Babel)
+async function loadApp(win) {
+  const startUrl = process.env.ELECTRON_START_URL;
+  if (startUrl) {
+    console.log(`[Stash] Cargando desde ${startUrl} (dev mode)`);
+    win.loadURL(startUrl);
+    return;
+  }
+
+  if (await isViteRunning()) {
+    console.log(`[Stash] Detectado Vite en :${VITE_PORT}`);
+    win.loadURL(`http://localhost:${VITE_PORT}`);
+  } else {
+    const distIndex = path.join(__dirname, 'dist-web', 'index.html');
+    if (fs.existsSync(distIndex)) {
+      win.loadFile(distIndex);
+    } else {
+      win.loadFile('Stash.html');
+    }
+  }
+}
 
 let mainWin      = null;
 let companionWin = null;
@@ -151,7 +189,12 @@ function createWindow() {
   // Ocultar la barra de menú en Windows/Linux
   mainWin.setMenuBarVisibility(false);
 
-  mainWin.loadFile('Stash.html');
+  loadApp(mainWin);
+
+  // DevTools en desarrollo para diagnosticar errores
+  if (!app.isPackaged) {
+    mainWin.webContents.openDevTools({ mode: 'detach' });
+  }
 
   // 'close' (cancelable): si no estamos saliendo de verdad, ocultar al tray
   mainWin.on('close', (e) => {

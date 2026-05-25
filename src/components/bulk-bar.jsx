@@ -1,6 +1,8 @@
-// src/components/bulk-bar.jsx — BulkBar + ConfirmDeleteModal
+import React from 'react';
+import { Btn, Modal } from '@/ui';
+import { TrashIcon } from './icons';
 
-function BulkBar({ count, total, onSelectAll, onClear, onDelete }) {
+export function BulkBar({ count, total, onSelectAll, onClear, onDelete }) {
   if (count === 0) return null;
   return (
     <div style={{
@@ -28,7 +30,7 @@ function BulkBar({ count, total, onSelectAll, onClear, onDelete }) {
   );
 }
 
-function ConfirmDeleteModal({ open, count, onConfirm, onCancel }) {
+export function ConfirmDeleteModal({ open, count, onConfirm, onCancel }) {
   if (!open) return null;
   return (
     <Modal open={open} onClose={onCancel} width={360}>
@@ -66,5 +68,3 @@ function ConfirmDeleteModal({ open, count, onConfirm, onCancel }) {
     </Modal>
   );
 }
-
-Object.assign(window, { BulkBar, ConfirmDeleteModal });

@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-web/
 out/
 
 # Credentials — NEVER commit the real config
@@ -13,3 +14,4 @@ src/config.jsx
 
 # IDE / Claude Code local config
 .claude/
+

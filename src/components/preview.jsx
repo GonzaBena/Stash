@@ -1,6 +1,9 @@
-// src/components/preview.jsx — PromptPreview modal (grid view card click)
+import React from 'react';
+import { Modal, Star, AIBadge, Tag, Btn, extractVars, renderBody } from '@/ui';
+import { AI_META } from '@/data';
+import { EyeOffIcon, TrashIcon, EditIcon, CopyIcon } from './icons';
 
-function PromptPreview({ open, prompt, onClose, accent, accentSoft, accentInk, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onPrev, onNext, hasPrev, hasNext }) {
+export function PromptPreview({ open, prompt, onClose, accent, accentSoft, accentInk, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onPrev, onNext, hasPrev, hasNext }) {
   if (!open || !prompt) return null;
   const vars = extractVars(prompt.body);
   const m = AI_META[prompt.ai];
@@ -88,5 +91,3 @@ function PromptPreview({ open, prompt, onClose, accent, accentSoft, accentInk, t
     </Modal>
   );
 }
-
-Object.assign(window, { PromptPreview });
