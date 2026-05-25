@@ -6,8 +6,10 @@ dist/
 dist-web/
 out/
 
-# Credentials — NEVER commit the real config
+# Credentials — NEVER commit real credentials
 src/config.jsx
+.env.local
+.env.*.local
 
 # Electron builder cache
 .cache/

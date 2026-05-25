@@ -33,9 +33,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Cachea el app shell (HTML, JS, CSS, fuentes)
-        // Excluye imágenes de marketing/screenshots que no son necesarias offline
+        // Cachea el app shell (HTML, JS, CSS, fuentes, ícono)
+        // Excluye screenshots de marketing (>2 MB) que no son necesarias offline
         globPatterns: ['**/*.{js,css,html,ico,woff2}', 'logo.png'],
+        globIgnores: [
+          '**/node_modules/**/*', 'sw.js', 'workbox-*.js',
+          'companion*.png', 'companion*.jpg',
+          'Title.png', 'main.png', 'main_edit.png',
+          'explore.png', 'companion_zoom.png',
+        ],
         // Supabase API: siempre red primero, cache como fallback
         runtimeCaching: [
           {
