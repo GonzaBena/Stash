@@ -9,7 +9,7 @@ function EmptyState() {
   );
 }
 
-function ListView({ prompts, selId, setSel, toggleStar, accent, density, selectedIds, onToggleSelect, onSelectAllVisible }) {
+function ListView({ prompts, selId, setSel, toggleStar, accent, density, selectedIds, onToggleSelect, onSelectAllVisible, onTagClick, activeTags = [] }) {
   const d = DENSITY[density];
   const allSelected   = prompts.length > 0 && prompts.every(p => selectedIds.has(p.id));
   const someSelected  = prompts.some(p => selectedIds.has(p.id));
@@ -44,7 +44,9 @@ function ListView({ prompts, selId, setSel, toggleStar, accent, density, selecte
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: d.font + 0.5, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
               <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
-                {p.tags.map(t => <Tag key={t} size="sm">{t}</Tag>)}
+                {p.tags.map(t => (
+                  <Tag key={t} size="sm" on={activeTags.includes(t)} onClick={onTagClick ? (e) => { e.stopPropagation(); onTagClick(t); } : null}>{t}</Tag>
+                ))}
                 {extractVars(p.body).length > 0 && (
                   <span style={{ fontSize: 11, color: accent, fontFamily: "ui-monospace, monospace", padding: "1px 6px", borderRadius: 999, background: `${accent}1f`, fontWeight: 600 }}>
                     {`{{${extractVars(p.body).length}}}`}

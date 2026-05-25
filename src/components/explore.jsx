@@ -101,6 +101,62 @@ function CommunityCard({ p, accent, user, onSave, onCardClick, onCreatorClick })
   );
 }
 
+// ── CommunityRow — fila para vista de lista en Explore ──────────────────────
+function CommunityRow({ p, accent, user, onSave, onCardClick, onCreatorClick, density }) {
+  const d = DENSITY[density] || DENSITY.regular;
+  const vars = extractVars(p.body || "");
+  return (
+    <div onClick={onCardClick} className="stash-row" style={{
+      display: "grid", gridTemplateColumns: "32px 1fr 140px 100px 40px",
+      gap: 12, alignItems: "center",
+      padding: `${d.row}px 18px`,
+      borderBottom: "1px solid var(--border-soft)",
+      cursor: "pointer",
+    }}>
+      <AIBadge ai={p.ai} size="sm" showName={false} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: d.font + 0.5, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
+        <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
+          {p.tags.slice(0, 3).map(t => <Tag key={t} size="sm">{t}</Tag>)}
+          {vars.length > 0 && (
+            <span style={{ fontSize: 11, color: accent, fontFamily: "ui-monospace, monospace", padding: "1px 6px", borderRadius: 999, background: `${accent}1f`, fontWeight: 600 }}>
+              {`{{${vars.length}}}`}
+            </span>
+          )}
+        </div>
+      </div>
+      <button
+          onClick={e => { e.stopPropagation(); if (onCreatorClick) onCreatorClick(p); }}
+          style={{
+            background: "none", border: "none", padding: 0,
+            cursor: onCreatorClick ? "pointer" : "default",
+            display: "flex", alignItems: "center", gap: 4,
+            minWidth: 0, fontFamily: "inherit",
+          }}
+        >
+          <span style={{
+            fontSize: 12, color: "var(--text-2)", fontWeight: 500,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {p.creator_name || "Anonymous"}
+          </span>
+          {p.creator_verified && <VerifiedBadge />}
+      </button>
+      <div style={{ fontSize: 12, color: "var(--text-faint)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+        {p.uses}× · {p.saves}❤
+      </div>
+      <button
+        className="stash-iconbtn"
+        title={user ? "Save to Library" : "Sign in to save"}
+        style={{ color: accent, marginLeft: "auto" }}
+        onClick={e => { e.stopPropagation(); onSave(p); }}
+      >
+        <SaveIcon />
+      </button>
+    </div>
+  );
+}
+
 // ── ExplorePreview — modal de detalle de un prompt comunitario ────────────────
 function ExplorePreview({ open, prompt, onClose, accent, accentSoft, accentInk, user, onSave, onViewProfile }) {
   if (!open || !prompt) return null;
@@ -299,9 +355,14 @@ function UserProfile({ userId, creatorName, creatorVerified, accent, accentSoft,
 }
 
 // ── ExploreView — cuadrícula principal de la comunidad ────────────────────────
-function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast }) {
-  const [results,       setResults]       = React.useState([]);
-  const [loading,       setLoading]       = React.useState(true);
+function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast, view = "grid", density = "regular" }) {
+  const [results,       setResults]       = React.useState(() => {
+    try {
+      const cached = localStorage.getItem('stash:explore_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) { return []; }
+  });
+  const [loading,       setLoading]       = React.useState(results.length === 0);
   const [error,         setError]         = React.useState(null);
   const [q,             setQ]             = React.useState("");
   const [aiFilter,      setAiFilter]      = React.useState(null);
@@ -318,23 +379,27 @@ function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast })
 
   React.useEffect(() => {
     if (!_supabase) { setLoading(false); return; }
-    setLoading(true);
+    // Solo mostramos loading si no hay resultados previos
+    if (results.length === 0) setLoading(true);
     setError(null);
-    const { column, ascending } = orderMap[sort] || orderMap.popular;
     _supabase
       .from('prompts')
       .select('id, title, body, ai, tags, uses, saves, creator_name, creator_verified, user_id, updated_at')
       .eq('public', true)
-      .order(column, { ascending })
       .then(({ data, error: fetchErr }) => {
         if (fetchErr) setError(fetchErr.message);
-        else setResults(data || []);
+        else {
+          const fetched = data || [];
+          setResults(fetched);
+          try { localStorage.setItem('stash:explore_cache', JSON.stringify(fetched)); } catch (e) {}
+        }
         setLoading(false);
       });
-  }, [sort, refreshKey]);
+  }, [refreshKey]);
 
   const filtered = React.useMemo(() => {
-    return results.filter(p => {
+    // 1. Filtrar
+    let items = results.filter(p => {
       if (aiFilter && p.ai !== aiFilter) return false;
       if (q) {
         const ql = q.toLowerCase();
@@ -343,7 +408,23 @@ function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast })
       }
       return true;
     });
-  }, [results, q, aiFilter]);
+
+    // 2. Ordenar localmente
+    const { column, ascending } = orderMap[sort] || orderMap.popular;
+    items.sort((a, b) => {
+      let vA = a[column];
+      let vB = b[column];
+      if (column === "updated_at") {
+        vA = new Date(vA || 0).getTime();
+        vB = new Date(vB || 0).getTime();
+      }
+      if (vA === vB) return 0;
+      const res = vA > vB ? 1 : -1;
+      return ascending ? res : -res;
+    });
+
+    return items;
+  }, [results, q, aiFilter, sort]);
 
   const handleViewProfile = (p) => {
     setProfileTarget({ userId: p.user_id, creatorName: p.creator_name, creatorVerified: p.creator_verified });
@@ -455,7 +536,7 @@ function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast })
       </div>
 
       {/* ── Contenido ────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "auto", padding: 18 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: view === "grid" ? 18 : 0, background: view === "list" ? "var(--surface)" : "var(--bg)" }}>
         {loading ? (
           <div style={{ padding: 60, textAlign: "center", color: "var(--text-faint)", fontSize: 13.5 }}>
             Loading community prompts…
@@ -473,7 +554,7 @@ function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast })
                 : "Try a different search or remove a filter."}
             </div>
           </div>
-        ) : (
+        ) : view === "grid" ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
             {filtered.map(p => (
               <CommunityCard
@@ -484,6 +565,29 @@ function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast })
                 onSave={onSave}
                 onCardClick={() => setPreview(p)}
                 onCreatorClick={handleViewProfile}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {/* List Header */}
+            <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 140px 100px 40px", padding: "10px 18px 8px", alignItems: "center", fontSize: 11, color: "var(--text-faint)", letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 600, borderBottom: "1px solid var(--border)", gap: 12, position: "sticky", top: 0, background: "var(--surface)", zIndex: 10 }}>
+              <span>Model</span>
+              <span>Title</span>
+              <span>Creator</span>
+              <span style={{ textAlign: "right" }}>Stats</span>
+              <span />
+            </div>
+            {filtered.map(p => (
+              <CommunityRow
+                key={p.id}
+                p={p}
+                accent={accent}
+                user={user}
+                onSave={onSave}
+                onCardClick={() => setPreview(p)}
+                onCreatorClick={handleViewProfile}
+                density={density}
               />
             ))}
           </div>

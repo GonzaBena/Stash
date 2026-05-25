@@ -37,7 +37,9 @@ function App() {
     } catch(e) { return SAMPLE_PROMPTS; }
   });
   const [q, setQ] = React.useState("");
-  const [filter, setFilter] = React.useState({ scope: "all", ai: null, tag: null });
+  const [filter, setFilter] = React.useState({ scope: "all", ai: null, tags: [] });
+  const [libSort, setLibSort] = React.useState("recent"); // "recent" | "alpha" | "uses"
+  const [libDir, setLibDir] = React.useState("desc"); // "asc" | "desc"
   const [view, setView] = React.useState(t.defaultView || "list");
   const [selId, setSel] = React.useState(prompts[0]?.id ?? null);
   const [editor, setEditor] = React.useState({ open: false, draft: null });
@@ -118,6 +120,33 @@ function App() {
     }
   }, []);
 
+  const pushPromptToCloud = React.useCallback(async (p) => {
+    if (!user || !_supabase) return;
+    try {
+      let creator_verified = false;
+      if (p.public) {
+        const { data: profile } = await _supabase
+          .from('profiles').select('verified').eq('user_id', user.id).single();
+        creator_verified = profile?.verified || false;
+      }
+      const { error } = await _supabase.from('prompts').upsert({
+        id: p.id, user_id: user.id,
+        title: p.title || '', body: p.body || '',
+        ai: p.ai || 'generic', tags: p.tags || [],
+        star: p.star || false, uses: p.uses || 0,
+        edited: p.edited || 'just now',
+        updated_at: p.updated_at || new Date().toISOString(),
+        public: !!p.public,
+        creator_name: p.creator_name || null,
+        creator_verified,
+        source_id: p.source_id || null,
+      }, { onConflict: 'id,user_id' });
+      if (error) throw error;
+    } catch (err) {
+      console.warn('[Stash] Error pushing to cloud:', err.message);
+    }
+  }, [user]);
+
   // Auto-sync al hacer login (dispara cuando user.id pasa de null a un UUID)
   React.useEffect(() => {
     if (!user) return;
@@ -174,27 +203,59 @@ function App() {
 
   const filtered = React.useMemo(() => {
     const ql = q.toLowerCase();
-    return prompts.filter(p => {
+    let items = prompts.filter(p => {
       if (filter.scope === "starred" && !p.star) return false;
       if (filter.scope === "shared"  && !p.public) return false;
       if (filter.ai && p.ai !== filter.ai) return false;
-      if (filter.tag && !p.tags.includes(filter.tag)) return false;
+      if (filter.tags && filter.tags.length > 0) {
+        if (!filter.tags.every(t => (p.tags || []).includes(t))) return false;
+      }
       if (ql) {
-        const hay = (p.title + " " + p.body + " " + p.tags.join(" ") + " " + p.ai).toLowerCase();
+        const hay = (p.title + " " + p.body + " " + (p.tags || []).join(" ") + " " + p.ai).toLowerCase();
         if (!hay.includes(ql)) return false;
       }
       return true;
     });
-  }, [prompts, q, filter]);
+
+    // Sorting logic for library
+    items.sort((a, b) => {
+      let vA, vB;
+      if (libSort === "alpha") {
+        vA = (a.title || "").toLowerCase();
+        vB = (b.title || "").toLowerCase();
+      } else if (libSort === "uses") {
+        vA = a.uses || 0;
+        vB = b.uses || 0;
+      } else {
+        // Default: recent (updated_at)
+        vA = new Date(a.updated_at || 0).getTime();
+        vB = new Date(b.updated_at || 0).getTime();
+      }
+
+      if (vA === vB) return 0;
+      const res = vA > vB ? 1 : -1;
+      return libDir === "asc" ? res : -res;
+    });
+
+    return items;
+  }, [prompts, q, filter, libSort, libDir]);
 
   const sel = filtered.find(p => p.id === selId) || filtered[0] || null;
   React.useEffect(() => {
     if (!filtered.find(p => p.id === selId) && filtered[0]) setSel(filtered[0].id);
   }, [filtered]);
 
-  const toggleStar = (id) => setPrompts(ps => ps.map(p =>
-    p.id === id ? { ...p, star: !p.star, updated_at: new Date().toISOString() } : p
-  ));
+  const toggleStar = (id) => {
+    const now = new Date().toISOString();
+    setPrompts(ps => ps.map(p => {
+      if (p.id === id) {
+        const updated = { ...p, star: !p.star, updated_at: now };
+        pushPromptToCloud(updated);
+        return updated;
+      }
+      return p;
+    }));
+  };
 
   // ── Bulk selection helpers ──────────────────────────────────────────────────
   const toggleSelect = (id) => setSelectedIds(prev => {
@@ -228,24 +289,45 @@ function App() {
       return;
     }
     try { await navigator.clipboard.writeText(p.body); } catch (e) {}
-    setPrompts(ps => ps.map(x => x.id === p.id
-      ? { ...x, uses: x.uses + 1, updated_at: new Date().toISOString() }
-      : x
-    ));
+    const now = new Date().toISOString();
+    setPrompts(ps => ps.map(x => {
+      if (x.id === p.id) {
+        const updated = { ...x, uses: x.uses + 1, updated_at: now };
+        pushPromptToCloud(updated);
+        return updated;
+      }
+      return x;
+    }));
     showToast("Copied to clipboard", "ok");
   };
 
   const onFillerConfirm = async (text) => {
     try { await navigator.clipboard.writeText(text); } catch (e) {}
-    if (filler.prompt) setPrompts(ps => ps.map(x => x.id === filler.prompt.id
-      ? { ...x, uses: x.uses + 1, updated_at: new Date().toISOString() }
-      : x
-    ));
+    if (filler.prompt) {
+      const now = new Date().toISOString();
+      setPrompts(ps => ps.map(x => {
+        if (x.id === filler.prompt.id) {
+          const updated = { ...x, uses: x.uses + 1, updated_at: now };
+          pushPromptToCloud(updated);
+          return updated;
+        }
+        return x;
+      }));
+    }
     setFiller({ open: false, prompt: null });
     showToast("Copied to clipboard", "ok");
   };
 
-  const openNew = () => setEditor({ open: true, draft: { title: "", body: "", ai: "claude", tags: [], star: false } });
+  const openNew = () => setEditor({
+    open: true,
+    draft: {
+      title: "",
+      body: "",
+      ai: filter.ai || "claude",
+      tags: [...(filter.tags || [])],
+      star: filter.scope === "starred"
+    }
+  });
   const openEdit = (p) => setEditor({ open: true, draft: { ...p } });
   const saveDraft = async () => {
     const d = editor.draft;
@@ -268,23 +350,9 @@ function App() {
       showToast("Prompt saved", "ok");
     }
     setEditor({ open: false, draft: null });
-    // Push inmediato a Supabase si se marcó como público
-    if (savedPrompt.public && user && _supabase) {
-      // Consultar si el usuario está verificado en profiles
-      const { data: profile } = await _supabase
-        .from('profiles').select('verified').eq('user_id', user.id).single();
-      _supabase.from('prompts').upsert({
-        id: savedPrompt.id, user_id: user.id,
-        title: savedPrompt.title || '', body: savedPrompt.body || '',
-        ai: savedPrompt.ai || 'generic', tags: savedPrompt.tags || [],
-        star: savedPrompt.star || false, uses: savedPrompt.uses || 0,
-        edited: savedPrompt.edited,
-        updated_at: savedPrompt.updated_at,
-        public: true,
-        creator_name: creatorName,
-        creator_verified: profile?.verified || false,
-      }, { onConflict: 'id,user_id' });
-    }
+
+    // Push inmediato a Supabase si el usuario está logueado
+    pushPromptToCloud(savedPrompt);
   };
   // ── Guardar copia de un prompt comunitario ────────────────────────────────
   const saveFromCommunity = (communityPrompt) => {
@@ -321,21 +389,8 @@ function App() {
     showToast("Saved to your library ✓", "ok");
 
     if (_supabase && user) {
-      // 1. Persistir la copia inmediatamente en Supabase (no esperar al próximo sync)
-      _supabase.from('prompts').upsert({
-        id: copy.id, user_id: user.id,
-        title: copy.title || '', body: copy.body || '',
-        ai: copy.ai || 'generic', tags: copy.tags || [],
-        star: false, uses: 0,
-        edited: copy.edited,
-        updated_at: now,
-        public: false,
-        creator_name: null,
-        source_id: communityPrompt.id,
-      }, { onConflict: 'id,user_id' })
-      .then(({ error }) => {
-        if (error) console.warn('[Stash] Error guardando copia en cloud:', error.message);
-      });
+      // 1. Persistir la copia inmediatamente en Supabase
+      pushPromptToCloud(copy);
 
       // 2. Incrementar el contador de saves del prompt original
       _supabase
@@ -356,22 +411,21 @@ function App() {
 
   const onUnpublish = async (id) => {
     const now = new Date().toISOString();
-    setPrompts(ps => ps.map(p =>
-      p.id === id ? { ...p, public: false, updated_at: now } : p
-    ));
+    setPrompts(ps => ps.map(p => {
+      if (p.id === id) {
+        const updated = { ...p, public: false, updated_at: now };
+        pushPromptToCloud(updated);
+        return updated;
+      }
+      return p;
+    }));
     showToast("Quitado de Explore", "ok");
-    if (user && _supabase) {
-      await _supabase.from('prompts')
-        .update({ public: false, updated_at: now })
-        .match({ id, user_id: user.id });
-    }
   };
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const showDetailPane = view === "list" && !isMobile;
   const showMobileDetail = isMobile && mobileDetail && sel;
 
-  // Props del AccountSection compartidas por sidebar desktop y mobile
   const accountProps = {
     user,
     loading:   authState.loading,
@@ -381,6 +435,15 @@ function App() {
     signIn,
     signOut,
     onSync:    handleManualSync,
+  };
+
+  const onTagClick = (t) => {
+    setSection("library");
+    const tags = filter.tags || [];
+    const nextTags = tags.includes(t)
+      ? tags.filter(tag => tag !== t)
+      : [...tags, t];
+    setFilter({ ...filter, tags: nextTags });
   };
 
   return (
@@ -393,7 +456,11 @@ function App() {
       <TopBar q={q} setQ={setQ} view={view} setView={setView} onNew={openNew}
         accent={accent} accentInk={accentInk}
         onMenu={() => setMobileSidebar(true)} isMobile={isMobile}
-        dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)} />
+        dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)}
+        section={section}
+        libSort={libSort} setLibSort={setLibSort}
+        libDir={libDir} setLibDir={setLibDir}
+      />
 
       <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
         {/* sidebar (desktop static, mobile drawer) */}
@@ -428,6 +495,8 @@ function App() {
               user={user}
               onSave={saveFromCommunity}
               showToast={showToast}
+              view={view}
+              density={t.density}
             />
           ) : view === "list" ? (
             <ListView
@@ -440,6 +509,8 @@ function App() {
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onSelectAllVisible={selectAllVisible}
+              onTagClick={onTagClick}
+              activeTags={filter.tags}
             />
           ) : (
             <GridView
@@ -452,6 +523,8 @@ function App() {
               onEdit={openEdit}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
+              onTagClick={onTagClick}
+              activeTags={filter.tags}
             />
           )}
 
@@ -482,6 +555,8 @@ function App() {
                 onCopy={onCopy} onEdit={openEdit} onDelete={onDelete} onUnpublish={onUnpublish}
                 isMobile={false}
                 width={detailWidth}
+                onTagClick={onTagClick}
+                activeTags={filter.tags}
               />
             </React.Fragment>
           )}
@@ -497,6 +572,8 @@ function App() {
               onCopy={onCopy} onEdit={openEdit} onDelete={(id) => { onDelete(id); setMobileDetail(false); }} onUnpublish={onUnpublish}
               isMobile={true}
               onClose={() => setMobileDetail(false)}
+              onTagClick={onTagClick}
+              activeTags={filter.tags}
             />
           </div>
         )}

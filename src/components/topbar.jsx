@@ -2,7 +2,7 @@
 
 const { ipcRenderer } = require('electron');
 
-function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark }) {
+function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark, section, libSort, setLibSort, libDir, setLibDir }) {
   return (
     <header style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -27,6 +27,33 @@ function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMo
         {q && <button className="stash-iconbtn" onClick={() => setQ("")} style={{ width: 22, height: 22 }}><span style={{ fontSize: 14 }}>×</span></button>}
         <kbd style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 6px", fontFamily: "ui-monospace, monospace", fontSize: 11, color: "var(--text-muted-2)" }}>/</kbd>
       </div>
+
+      {/* lib sorting (only if in library section) */}
+      {!isMobile && section === "library" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 8 }}>
+          <select 
+            value={libSort} 
+            onChange={e => setLibSort(e.target.value)}
+            style={{ 
+              background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+              padding: "6px 10px", fontSize: 12.5, fontWeight: 500, color: "var(--text-2)", outline: "none",
+              cursor: "pointer", fontFamily: "inherit"
+            }}
+          >
+            <option value="recent">Recent</option>
+            <option value="alpha">Alphabetical</option>
+            <option value="uses">Most Used</option>
+          </select>
+          <button 
+            className="stash-iconbtn" 
+            onClick={() => setLibDir(d => d === "asc" ? "desc" : "asc")}
+            title={libDir === "asc" ? "Ascending" : "Descending"}
+            style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}
+          >
+            {libDir === "asc" ? <ArrowUpIcon /> : <ArrowDownIcon />}
+          </button>
+        </div>
+      )}
 
       {/* view toggle */}
       <div style={{

@@ -82,7 +82,7 @@ function PromptPreview({ open, prompt, onClose, accent, accentSoft, accentInk, t
           <Btn onClick={() => onUnpublish(prompt.id)} title="Quitar de Explore" style={{ color: "var(--text-2)" }}><EyeOffIcon /></Btn>
         )}
         <Btn onClick={() => onDelete(prompt.id)} title="Delete" style={{ color: "var(--danger)" }}><TrashIcon /></Btn>
-        <Btn onClick={() => onEdit(prompt)}><EditIcon /> Edit</Btn>
+        {!prompt.source_id && <Btn onClick={() => onEdit(prompt)}><EditIcon /> Edit</Btn>}
         <Btn primary accent={accent} accentInk={accentInk} onClick={() => onCopy(prompt)}><CopyIcon /> Copy</Btn>
       </div>
     </Modal>

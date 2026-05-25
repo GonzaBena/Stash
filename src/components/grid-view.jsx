@@ -1,6 +1,6 @@
 // src/components/grid-view.jsx — GridView card layout
 
-function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit, selectedIds, onToggleSelect }) {
+function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit, selectedIds, onToggleSelect, onTagClick, activeTags = [] }) {
   const d = DENSITY[density];
   const colMin = density === "compact" ? 240 : density === "spacious" ? 320 : 280;
   if (prompts.length === 0) return <div style={{ flex: 1, overflow: "auto", padding: 20 }}><EmptyState /></div>;
@@ -42,16 +42,20 @@ function GridView({ prompts, setSel, toggleStar, accent, density, onCopy, onEdit
                 display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
               }}>{renderBody(p.body.split("\n")[0], accent)}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {p.tags.map(t => <Tag key={t} size="sm">{t}</Tag>)}
+                {p.tags.map(t => (
+                  <Tag key={t} size="sm" on={activeTags.includes(t)} onClick={onTagClick ? (e) => { e.stopPropagation(); onTagClick(t); } : null}>{t}</Tag>
+                ))}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: 6, borderTop: "1px dashed var(--border)", marginTop: 2 }}>
                 <span style={{ color: "var(--text-faint)", fontSize: 11.5 }}>{p.uses}× · {p.edited} ago</span>
                 <button className="stash-iconbtn" style={{ marginLeft: "auto" }} title="Copy" onClick={(e) => { e.stopPropagation(); onCopy(p); }}>
                   <CopyIcon />
                 </button>
-                <button className="stash-iconbtn" title="Edit" onClick={(e) => { e.stopPropagation(); onEdit(p); }}>
-                  <EditIcon />
-                </button>
+                {!p.source_id && (
+                  <button className="stash-iconbtn" title="Edit" onClick={(e) => { e.stopPropagation(); onEdit(p); }}>
+                    <EditIcon />
+                  </button>
+                )}
               </div>
             </div>
           );

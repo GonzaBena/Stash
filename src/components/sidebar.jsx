@@ -64,12 +64,12 @@ function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobi
 
         <div>
           <div style={{ fontSize: 11, letterSpacing: 0.7, color: "var(--text-faint)", textTransform: "uppercase", fontWeight: 600, padding: "4px 10px 6px" }}>Library</div>
-          {item("all", section === "library" && filter.scope === "all", "var(--text)", "≡", "All prompts", counts.all,
-            goLibrary(() => setFilter({ ...filter, scope: "all", ai: null })))}
+          {item("all", section === "library" && filter.scope === "all" && !filter.ai && filter.tags.length === 0, "var(--text)", "≡", "All prompts", counts.all,
+            goLibrary(() => setFilter({ scope: "all", ai: null, tags: [] })))}
           {item("starred", section === "library" && filter.scope === "starred", accent, "★", "Starred", counts.starred,
-            goLibrary(() => setFilter({ ...filter, scope: "starred", ai: null })))}
+            goLibrary(() => setFilter({ ...filter, scope: "starred" })))}
           {accountProps?.user && item("shared", section === "library" && filter.scope === "shared", "#0ea5e9", globeIcon, "Shared", counts.shared,
-            goLibrary(() => setFilter({ ...filter, scope: "shared", ai: null })))}
+            goLibrary(() => setFilter({ ...filter, scope: "shared" })))}
         </div>
 
         <div>
@@ -84,8 +84,14 @@ function Sidebar({ prompts, filter, setFilter, accent, accentSoft, onClose, mobi
           <div style={{ fontSize: 11, letterSpacing: 0.7, color: "var(--text-faint)", textTransform: "uppercase", fontWeight: 600, padding: "4px 10px 6px" }}>Tags</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 4px" }}>
             {Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(([t, n]) => (
-              <Tag key={t} on={section === "library" && filter.tag === t} size="sm"
-                onClick={goLibrary(() => setFilter({ ...filter, tag: filter.tag === t ? null : t }))}>
+              <Tag key={t} on={section === "library" && (filter.tags || []).includes(t)} size="sm"
+                onClick={goLibrary(() => {
+                  const tags = filter.tags || [];
+                  const nextTags = tags.includes(t)
+                    ? tags.filter(tag => tag !== t)
+                    : [...tags, t];
+                  setFilter({ ...filter, tags: nextTags });
+                })}>
                 {t}
               </Tag>
             ))}

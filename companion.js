@@ -80,7 +80,7 @@
 
     if (prompts.length === 0) {
       list.hidden     = true;
-      emptyMsg.hidden = false;
+      emptyMsg.hidden = !currentQuery; // solo visible si hay búsqueda activa sin resultados
       return;
     }
 

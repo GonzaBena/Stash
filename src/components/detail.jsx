@@ -1,6 +1,6 @@
 // src/components/detail.jsx — Detail pane (right of list view + mobile overlay)
 
-function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onClose, isMobile, width }) {
+function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, onUnpublish, onClose, isMobile, width, onTagClick, activeTags = [] }) {
   if (!p) return (
     <div style={{ flex: isMobile ? 1 : `0 0 ${width || 380}px`, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", fontStyle: "italic", fontFamily: "'Instrument Serif', serif", fontSize: 22, padding: 40, textAlign: "center", background: "var(--bg)", borderLeft: isMobile ? 0 : "1px solid var(--border)" }}>
       Select a prompt to see its body
@@ -22,7 +22,9 @@ function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, o
       <div style={{ padding: "10px 18px", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", borderBottom: "1px solid var(--border)" }}>
         <AIBadge ai={p.ai} size="sm" />
         <span style={{ width: 1, height: 14, background: "var(--border)", margin: "0 2px" }} />
-        {p.tags.map(t => <Tag key={t} size="sm">{t}</Tag>)}
+        {p.tags.map(t => (
+          <Tag key={t} size="sm" on={activeTags.includes(t)} onClick={onTagClick ? () => onTagClick(t) : null}>{t}</Tag>
+        ))}
       </div>
       <div style={{ padding: 18, flex: 1, overflow: "auto" }}>
         <pre style={{
@@ -43,7 +45,7 @@ function Detail({ p, accent, accentSoft, toggleStar, onCopy, onEdit, onDelete, o
       </div>
       <div style={{ padding: 14, borderTop: "1px solid var(--border)", display: "flex", gap: 8 }}>
         <Btn onClick={() => onCopy(p)} style={{ flex: 1, justifyContent: "center" }}><CopyIcon /> Copy</Btn>
-        <Btn onClick={() => onEdit(p)} style={{ justifyContent: "center" }}><EditIcon /> Edit</Btn>
+        {!p.source_id && <Btn onClick={() => onEdit(p)} style={{ justifyContent: "center" }}><EditIcon /> Edit</Btn>}
         {p.public && onUnpublish && (
           <Btn onClick={() => onUnpublish(p.id)} title="Quitar de Explore" style={{ color: "var(--text-2)" }}><EyeOffIcon /></Btn>
         )}
