@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { _supabase } from './supabase';
+import { isElectron } from './lib/platform';
 import { useAuth } from './auth';
 import { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakColor, TweakRadio } from './tweaks';
 import { THEMES, useToast, extractVars } from './ui';
+import { parseSearchQuery } from './components/smart-search';
 import { SAMPLE_PROMPTS } from './data';
 
 // Components
@@ -67,6 +69,10 @@ export default function App() {
   });
 
   const [q, setQ] = useState("");
+  // En Electron el TopBar controla la búsqueda de Explore también
+  const [exploreQ, setExploreQ] = useState("");
+  // Tags y usuarios de la comunidad (Supabase), para autocompletar en el TopBar de Explore
+  const [exploreMeta, setExploreMeta] = useState({ tags: [], users: [] });
   const [filter, setFilter] = useState({ scope: "all", ai: null, tags: [] });
   const [libSort, setLibSort] = useState("recent");
   const [libDir, setLibDir] = useState("desc");
@@ -231,15 +237,42 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // Listas para autocompletar en el buscador
+  const availableTags = useMemo(() => {
+    const s = new Set();
+    prompts.forEach(p => (p.tags || []).forEach(t => s.add(t)));
+    return [...s].sort();
+  }, [prompts]);
+
+  const availableUsers = useMemo(() => {
+    const s = new Set();
+    prompts.forEach(p => { if (p.creator_name) s.add(p.creator_name); });
+    return [...s].sort();
+  }, [prompts]);
+
   const filtered = useMemo(() => {
-    const ql = q.toLowerCase();
+    const { tags: qTags, users: qUsers, text } = parseSearchQuery(q);
+    const ql = text.toLowerCase();
+
     let items = prompts.filter(p => {
       if (filter.scope === "starred" && !p.star) return false;
       if (filter.scope === "shared"  && !p.public) return false;
       if (filter.ai && p.ai !== filter.ai) return false;
-      if (filter.tags && filter.tags.length > 0) {
-        if (!filter.tags.every(t => (p.tags || []).includes(t))) return false;
+
+      // Tags del sidebar + #tags del buscador (intersección de ambos)
+      const allTagFilters = [...(filter.tags || []), ...qTags];
+      if (allTagFilters.length > 0) {
+        const pTagsLower = (p.tags || []).map(t => t.toLowerCase());
+        if (!allTagFilters.every(t => pTagsLower.includes(t.toLowerCase()))) return false;
       }
+
+      // @user — filtra por creator_name (útil en prompts guardados de la comunidad)
+      if (qUsers.length > 0) {
+        const name = (p.creator_name || '').toLowerCase();
+        if (!qUsers.some(u => name.includes(u))) return false;
+      }
+
+      // Búsqueda de texto libre (sin los tokens # y @)
       if (ql) {
         const hay = (p.title + " " + p.body + " " + (p.tags || []).join(" ") + " " + p.ai).toLowerCase();
         if (!hay.includes(ql)) return false;
@@ -411,7 +444,18 @@ export default function App() {
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)", fontFamily: "'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif", fontSize: 14 }}>
-      <TopBar q={q} setQ={setQ} view={view} setView={setView} onNew={openNew} accent={accent} accentInk={accentInk} onMenu={() => setMobileSidebar(true)} isMobile={isMobile} dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)} section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir} />
+      {/* Desktop+Explore: TopBar maneja exploreQ. Mobile+Explore: Explore usa su propio buscador */}
+      <TopBar
+        q={!isMobile && section === 'explore' ? exploreQ : q}
+        setQ={!isMobile && section === 'explore' ? setExploreQ : setQ}
+        view={view} setView={setView} onNew={openNew}
+        accent={accent} accentInk={accentInk}
+        onMenu={() => setMobileSidebar(true)} isMobile={isMobile}
+        dark={!!t.dark} onToggleDark={() => setTweak("dark", !t.dark)}
+        section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir}
+        availableTags={!isMobile && section === 'explore' ? exploreMeta.tags : availableTags}
+        availableUsers={!isMobile && section === 'explore' ? exploreMeta.users : availableUsers}
+      />
       {isMobile && <MobileFilterBar filter={filter} setFilter={setFilter} prompts={prompts} accent={accent} section={section} libSort={libSort} setLibSort={setLibSort} libDir={libDir} setLibDir={setLibDir} onSync={handleManualSync} syncing={authState.syncing} />}
       <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
         {!isMobile && <Sidebar prompts={prompts} filter={filter} setFilter={setFilter} accent={accent} accentSoft={accentSoft} accountProps={accountProps} section={section} setSection={setSection} />}
@@ -435,7 +479,7 @@ export default function App() {
         <main ref={mainRef} style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: view === "list" ? "var(--surface)" : "var(--bg)" }}>
           {section === "library" && <BulkBar count={selectedIds.size} total={filtered.length} onSelectAll={() => selectAllVisible(filtered.map(p => p.id))} onClear={clearSelection} onDelete={requestBulkDelete} />}
           <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-          {section === "explore" ? <ExploreView accent={accent} accentSoft={accentSoft} accentInk={accentInk} user={user} onSave={saveFromCommunity} showToast={showToast} view={view} density={t.density} /> : view === "list" ? <ListView prompts={filtered} selId={sel?.id} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); }} toggleStar={toggleStar} accent={accent} density={t.density} selectedIds={selectedIds} onToggleSelect={toggleSelect} onSelectAllVisible={selectAllVisible} onTagClick={onTagClick} activeTags={filter.tags} /> : <GridView prompts={filtered} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); else setPreviewId(id); }} toggleStar={toggleStar} accent={accent} density={t.density} onCopy={onCopy} onEdit={openEdit} selectedIds={selectedIds} onToggleSelect={toggleSelect} onTagClick={onTagClick} activeTags={filter.tags} />}
+          {section === "explore" ? <ExploreView accent={accent} accentSoft={accentSoft} accentInk={accentInk} user={user} onSave={saveFromCommunity} showToast={showToast} view={view} density={t.density} externalQ={!isMobile ? exploreQ : undefined} externalSetQ={!isMobile ? setExploreQ : undefined} onMetaChange={setExploreMeta} /> : view === "list" ? <ListView prompts={filtered} selId={sel?.id} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); }} toggleStar={toggleStar} accent={accent} density={t.density} selectedIds={selectedIds} onToggleSelect={toggleSelect} onSelectAllVisible={selectAllVisible} onTagClick={onTagClick} activeTags={filter.tags} /> : <GridView prompts={filtered} setSel={(id) => { setSel(id); if (isMobile) setMobileDetail(true); else setPreviewId(id); }} toggleStar={toggleStar} accent={accent} density={t.density} onCopy={onCopy} onEdit={openEdit} selectedIds={selectedIds} onToggleSelect={toggleSelect} onTagClick={onTagClick} activeTags={filter.tags} />}
           {section === "library" && view === "list" && !isMobile && (
             <React.Fragment>
               <Splitter accent={accent} onDrag={(clientX) => {

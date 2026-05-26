@@ -3,6 +3,7 @@ import { AIBadge, Tag, Modal, Btn, extractVars, renderBody, DENSITY } from '@/ui
 import { AI_META } from '@/data';
 import { _supabase } from '@/supabase';
 import { SearchIcon } from './icons';
+import { SmartSearchInput, parseSearchQuery } from './smart-search';
 
 export const SaveIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -353,7 +354,7 @@ export function UserProfile({ userId, creatorName, creatorVerified, accent, acce
   );
 }
 
-export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast, view = "grid", density = "regular" }) {
+export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showToast, view = "grid", density = "regular", externalQ, externalSetQ, onMetaChange }) {
   const [results,       setResults]       = React.useState(() => {
     try {
       const cached = localStorage.getItem('stash:explore_cache');
@@ -362,7 +363,12 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
   });
   const [loading,       setLoading]       = React.useState(results.length === 0);
   const [error,         setError]         = React.useState(null);
-  const [q,             setQ]             = React.useState("");
+  const [internalQ,     setInternalQ]     = React.useState("");
+  // En Electron el buscador es externo (TopBar); en web usa estado interno
+  const q   = externalQ !== undefined ? externalQ : internalQ;
+  const setQ = externalSetQ !== undefined ? externalSetQ : setInternalQ;
+  const showOwnSearch = externalQ === undefined; // false en Electron
+
   const [aiFilter,      setAiFilter]      = React.useState(null);
   const [sort,          setSort]          = React.useState("popular");
   const [preview,       setPreview]       = React.useState(null);
@@ -395,12 +401,47 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
       });
   }, [refreshKey]);
 
+  // Listas para autocompletar — derivadas de los resultados de Supabase
+  const availableTags = React.useMemo(() => {
+    const s = new Set();
+    results.forEach(p => (p.tags || []).forEach(t => s.add(t)));
+    return [...s].sort();
+  }, [results]);
+
+  const availableUsers = React.useMemo(() => {
+    const s = new Set();
+    results.forEach(p => { if (p.creator_name) s.add(p.creator_name); });
+    return [...s].sort();
+  }, [results]);
+
+  // Notifica al padre (app.jsx) cuando las listas cambian,
+  // para que el TopBar en Electron pueda usarlas como sugerencias
+  React.useEffect(() => {
+    if (onMetaChange) onMetaChange({ tags: availableTags, users: availableUsers });
+  }, [availableTags, availableUsers]);
+
   const filtered = React.useMemo(() => {
+    const { tags: qTags, users: qUsers, text } = parseSearchQuery(q);
+    const ql = text.toLowerCase();
+
     // 1. Filtrar
     let items = results.filter(p => {
       if (aiFilter && p.ai !== aiFilter) return false;
-      if (q) {
-        const ql = q.toLowerCase();
+
+      // #tags del buscador
+      if (qTags.length > 0) {
+        const pTagsLower = (p.tags || []).map(t => t.toLowerCase());
+        if (!qTags.every(t => pTagsLower.includes(t))) return false;
+      }
+
+      // @user — filtra por creator_name
+      if (qUsers.length > 0) {
+        const name = (p.creator_name || '').toLowerCase();
+        if (!qUsers.some(u => name.includes(u))) return false;
+      }
+
+      // Texto libre (sin tokens # y @)
+      if (ql) {
         const hay = (p.title + " " + (p.body || "") + " " + (p.tags || []).join(" ")).toLowerCase();
         if (!hay.includes(ql)) return false;
       }
@@ -466,23 +507,19 @@ export function ExploreView({ accent, accentSoft, accentInk, user, onSave, showT
 
       {/* ── Barra de filtros ─────────────────────────────────────────────── */}
 
-      {/* Fila 1: buscador */}
-      <div style={{ flexShrink: 0, padding: "12px 14px 8px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px" }}>
-          <span style={{ color: "var(--text-faint)", display: "flex" }}><SearchIcon /></span>
-          <input
+      {/* Fila 1: buscador — solo en web (en Electron usa el del TopBar) */}
+      {showOwnSearch && (
+        <div style={{ flexShrink: 0, padding: "12px 14px 8px", borderBottom: "1px solid var(--border)" }}>
+          <SmartSearchInput
             value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Search community prompts…"
-            style={{ flex: 1, border: 0, outline: 0, background: "transparent", fontFamily: "inherit", fontSize: 13.5, color: "var(--text)" }}
+            onChange={setQ}
+            availableTags={availableTags}
+            availableUsers={availableUsers}
+            placeholder="Search… #tag @creator"
+            accent={accent}
           />
-          {q && (
-            <button className="stash-iconbtn" onClick={() => setQ("")} style={{ width: 22, height: 22 }}>
-              <span style={{ fontSize: 14 }}>×</span>
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Fila 2: chips AI — scroll horizontal sin wrap */}
       <div style={{

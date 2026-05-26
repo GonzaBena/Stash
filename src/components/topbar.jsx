@@ -3,9 +3,10 @@ import { Btn, Tag } from '@/ui';
 import { AI_META } from '@/data';
 import { ipc, isElectron } from '@/lib/platform';
 import { MenuIcon, SearchIcon, ArrowUpIcon, ArrowDownIcon, ListIcon, GridIcon, SunIcon, MoonIcon, SettingsIcon, PlusIcon, vToggleBtn } from './icons';
+import { SmartSearchInput } from './smart-search';
 
 // ── TopBar ────────────────────────────────────────────────────────────────────
-export function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark, section, libSort, setLibSort, libDir, setLibDir }) {
+export function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMenu, isMobile, dark, onToggleDark, section, libSort, setLibSort, libDir, setLibDir, availableTags, availableUsers }) {
 
   if (isMobile) {
     return (
@@ -52,26 +53,19 @@ export function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMen
           </Btn>
         </div>
 
-        {/* Row 2: search */}
-        <div style={{ padding: '0 14px 10px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '7px 12px',
-          }}>
-            <span style={{ color: 'var(--text-faint)', display: 'flex' }}><SearchIcon /></span>
-            <input
-              value={q} onChange={e => setQ(e.target.value)}
-              placeholder="Search title, body, tag, model…"
-              style={{ flex: 1, border: 0, outline: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--text)' }}
+        {/* Row 2: search — mobile oculta en Explore (tiene buscador propio abajo) */}
+        {section !== 'explore' && (
+          <div style={{ padding: '0 14px 10px' }}>
+            <SmartSearchInput
+              value={q}
+              onChange={setQ}
+              availableTags={availableTags}
+              availableUsers={availableUsers}
+              placeholder="Search… #tag @user"
+              accent={accent}
             />
-            {q && (
-              <button className="stash-iconbtn" onClick={() => setQ('')} style={{ width: 22, height: 22 }}>
-                <span style={{ fontSize: 14 }}>×</span>
-              </button>
-            )}
           </div>
-        </div>
+        )}
       </header>
     );
   }
@@ -88,19 +82,19 @@ export function TopBar({ q, setQ, view, setView, onNew, accent, accentInk, onMen
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: accent, display: 'inline-block', alignSelf: 'center' }} />
       </div>
 
-      <div style={{
-        flex: 1, maxWidth: 520, marginLeft: 18,
-        display: 'flex', alignItems: 'center', gap: 8,
-        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
-        padding: '7px 12px',
-      }}>
-        <span style={{ color: 'var(--text-faint)', display: 'flex' }}><SearchIcon /></span>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search title, body, tag, model…" style={{
-          flex: 1, border: 0, outline: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--text)',
-        }} />
-        {q && <button className="stash-iconbtn" onClick={() => setQ('')} style={{ width: 22, height: 22 }}><span style={{ fontSize: 14 }}>×</span></button>}
-        <kbd style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '1px 6px', fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--text-muted-2)' }}>/</kbd>
-      </div>
+      {/* Buscador — desktop siempre visible (también en Explore) */}
+      <SmartSearchInput
+        value={q}
+        onChange={setQ}
+        availableTags={availableTags}
+        availableUsers={availableUsers}
+        placeholder={section === 'explore' ? "Search Explore… #tag @creator" : "Search… #tag @user"}
+        accent={accent}
+        style={{ flex: 1, maxWidth: 520, marginLeft: 18 }}
+        extraRight={
+          <kbd style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 5, padding: '1px 6px', fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--text-muted-2)', flexShrink: 0 }}>/</kbd>
+        }
+      />
 
       {section === 'library' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginRight: 8 }}>

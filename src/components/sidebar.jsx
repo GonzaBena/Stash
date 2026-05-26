@@ -108,7 +108,7 @@ export function Sidebar({
   return (
     <aside
       style={{
-        height: (!isElectron || isMobile) ? "100dvh" : undefined,
+        height: isMobile ? "100dvh" : undefined,
         width: isMobile ? "100vw" : 240,
         flexShrink: 0,
         borderRight: isMobile ? "none" : "1px solid var(--border)",
@@ -120,23 +120,42 @@ export function Sidebar({
     >
       {/* Header con botón de cierre — solo en mobile */}
       {isMobile && (
-        <div style={{
-          display: "flex", alignItems: "center",
-          padding: "14px 16px 10px",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}>
-          <span style={{
-            fontFamily: "'Instrument Serif', serif", fontStyle: "italic",
-            fontSize: 20, fontWeight: 500, color: "var(--text)", flex: 1,
-          }}>Menu</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "14px 16px 10px",
+            borderBottom: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Instrument Serif', serif",
+              fontStyle: "italic",
+              fontSize: 20,
+              fontWeight: 500,
+              color: "var(--text)",
+              flex: 1,
+            }}
+          >
+            Menu
+          </span>
           <button
             onClick={onClose}
             style={{
-              width: 34, height: 34, borderRadius: 9,
-              border: "1px solid var(--border)", background: "var(--surface)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "var(--text-2)", fontSize: 18, lineHeight: 1,
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "var(--text-2)",
+              fontSize: 18,
+              lineHeight: 1,
             }}
           >
             ×
